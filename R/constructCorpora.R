@@ -54,6 +54,28 @@ tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_rem
 ## replace them with their correct versions.
 ####################################################################################
 
+## Load the list of protected words
+protectedWords <- import_fetchProtectedWords()
+
+## Run the spellcheck
+tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, 
+                        utils_spellCheckTweet, 
+                        protectedWords = protectedWords)
+
+####################################################################################
+## Construct the corpus for each user
+####################################################################################
+
+corpusData <- data.table(tweetData)
+
+
+
+
+
+
+
+
+
 
 
 

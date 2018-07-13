@@ -32,7 +32,7 @@ import_loadTweets <- function() {
 
 
 ####################################################################################
-## Initialize lexical manipulation functions
+## Initialize utility functions
 ####################################################################################
 
 #' Remove Garbage
@@ -47,9 +47,9 @@ import_loadTweets <- function() {
 #' @return A logical indicating whether or not the string is garbage.
 utils_removeGarbage <- function(x = NA) {
   ## Define the list of characters that are considered garbage.
-  garbage <- c("\n", "&amp")
-  ## Remove all garbage characters from the word
-  for(i in garbage) x <- gsub(i, "", x)
+  garbage <- c("\n", "&amp", "https", "http")
+  ## Remove all garbage characters from the word by replacing them with spaces
+  for(i in garbage) x <- gsub(i, " ", x)
   ## Remove all punctuation except # and @. We need to preserve
   ## these symbols so that other functions can detect and remove
   ## entire hashtags and user IDs from tweets.
@@ -58,45 +58,6 @@ utils_removeGarbage <- function(x = NA) {
   x <- iconv(x, "latin1", "ASCII", sub="")
   ## Return the result
   return(x)
-}
-
-#' Remove String
-#' 
-#' Tweets often contain strings that are undesirable when constructing a corpus -
-#' things like URLs and hashtags. This is a wrapper function that will remove any
-#' such undesirable string from a tweet.
-#' 
-#' @param txt A vector containing a list of words.
-#' @param strType The type of string to be removed. Options include 'hashtag', 'url',
-#' 'user', and 'retweet'.
-#'
-#' @return The same vector of words but with any and all hashtags removed.
-scrub_removeString <- function(txt = NA, strType = NA) {
-  ## Break out the data into individual words
-  txt <- unlist(strsplit(txt, split = " "))
-  ## Identify any 
-  switch(strType, 
-         "garbage" = {
-           txt <- sapply(txt, utils_removeGarbage)
-           return(paste(txt, sep = " ", collapse = " "))
-         },
-         "hashtag" = {
-           target <- sapply(txt, utils_identHashtag)
-           return(paste(txt[!target], sep = " ", collapse = " "))
-         },
-         "url" = {
-           target <- sapply(txt, utils_identURL)
-           return(paste(txt[!target], sep = " ", collapse = " "))
-         },
-         "user" = {
-           target <- sapply(txt, utils_identUser)
-           return(paste(txt[!target], sep = " ", collapse = " "))
-         },
-         "retweet" = {
-           target <- sapply(txt, utils_identRetweet)
-           return(paste(txt[!target], sep = " ", collapse = " "))
-         }
-  )
 }
 
 #' Identify Hashtag
@@ -182,6 +143,111 @@ utils_identRetweet <- function(x = NA) {
     return(FALSE)
   }
 }
+
+#' Spellcheck Tweet
+#' 
+#' This is a utility function that will run a spellchecker on each word in a
+#' tweet. If a word is not found to be a real word, the function will replace
+#' that word with the first suggested replacement value returned by the spell-
+#' checker function.
+#' 
+#' @param x A string.
+#'
+#' @return A logical indicating whether or not the string is a retweet.
+utils_spellCheckTweet <- function(txt = NA, protectedWords = NA) {
+  ## Break out the data into individual words
+  txt <- unlist(strsplit(txt, split = " "))
+  ## Run the spellchecker on each word
+  txt <- unlist(lapply(txt, utils_spellCheckWord, protectedWords = protectedWords))
+  ## Return the result
+  return(paste(txt, sep = " ", collapse = " "))
+}
+
+#' Spellcheck Word
+#' 
+#' This is a utility function that checks if a word is a valid word. If
+#' it isn't, then the function will replace it with the first suggested 
+#' replacement value returned by the spell-checker function.
+#' 
+#' @param x A string.
+#'
+#' @return The updated string.
+utils_spellCheckWord <- function(x = NA, protectedWords = NA) {
+  ## Identify if the word is valid
+  if(!hunspell_check(x)) {
+    ## Make sure the word doesn't fall into the list of protected words
+    if(!x %in% protectedWords) {
+      ## Run the spellchecker on the word
+      x <- unlist(hunspell_suggest(x))[1]
+    }
+  }
+  return(x)
+}
+
+####################################################################################
+## Initialize data scrubbing functions
+####################################################################################
+
+#' Remove String
+#' 
+#' Tweets often contain strings that are undesirable when constructing a corpus -
+#' things like URLs and hashtags. This is a wrapper function that will remove any
+#' such undesirable string from a tweet.
+#' 
+#' @param txt A vector containing a list of words.
+#' @param strType The type of string to be removed. Options include 'hashtag', 'url',
+#' 'user', and 'retweet'.
+#'
+#' @return The same vector of words but with any and all hashtags removed.
+scrub_removeString <- function(txt = NA, strType = NA) {
+  ## Break out the data into individual words
+  txt <- unlist(strsplit(txt, split = " "))
+  ## Identify any 
+  switch(strType, 
+         "garbage" = {
+           txt <- sapply(txt, utils_removeGarbage)
+           return(paste(txt, sep = " ", collapse = " "))
+         },
+         "hashtag" = {
+           target <- sapply(txt, utils_identHashtag)
+           return(paste(txt[!target], sep = " ", collapse = " "))
+         },
+         "url" = {
+           target <- sapply(txt, utils_identURL)
+           return(paste(txt[!target], sep = " ", collapse = " "))
+         },
+         "user" = {
+           target <- sapply(txt, utils_identUser)
+           return(paste(txt[!target], sep = " ", collapse = " "))
+         },
+         "retweet" = {
+           target <- sapply(txt, utils_identRetweet)
+           return(paste(txt[!target], sep = " ", collapse = " "))
+         }
+  )
+}
+
+####################################################################################
+## Initialize data import functions
+####################################################################################
+
+#' Fetch Protected Words
+#' 
+#' This is a utility function that checks if a word is a valid word. If
+#' it isn't, then the function will replace it with the first suggested 
+#' replacement value returned by the spell-checker function.
+#'
+#' @return A vector of protected words.
+import_fetchProtectedWords <- function() {
+  protectedWords <- read.csv(file = "data/protectedWords.csv", stringsAsFactors = FALSE)
+  return(protectedWords$word)
+}
+
+
+####################################################################################
+## Initialize data assembly functions
+####################################################################################
+
 
 
 
