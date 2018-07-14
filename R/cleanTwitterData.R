@@ -63,20 +63,10 @@ tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1,
                         protectedWords = protectedWords)
 
 ####################################################################################
-## Construct the corpus for each user
+## Save the cleaned data
 ####################################################################################
 
-corpusData <- data.table(tweetData)
-
-
-
-
-
-
-
-
-
-
-
+save(tweetData, file = "data/cleanedTweetData.RData")
+rm(tweetData)
 
 

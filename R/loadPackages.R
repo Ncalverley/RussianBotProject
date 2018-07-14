@@ -14,7 +14,7 @@
 library(data.table)
 library(ggplot2)
 library(hunspell)
-
+library(tm)
 
 ####################################################################################
 ## Initialize data import functions
@@ -248,7 +248,31 @@ import_fetchProtectedWords <- function() {
 ## Initialize data assembly functions
 ####################################################################################
 
+#' Construct corpus
+#' 
+#' This function constructs a corpus from a vector of strings that have been passed
+#' into it.
+#' 
+#' @param txt A vector of strings.
+#'
+#' @return A compiled corpus of words.
+assemble_constructCorpus <- function(txt) {
+  
+  ## Transform text to lowercase
+  txt <- tolower(txt)
+  ## Replace excess whitespace
+  txt <- str_replace(gsub("\\s+", " ", str_trim(txt)), "B", "b")
+  ## Create a bag of words
+  dfCorpus = Corpus(VectorSource(txt)) 
+  
+  DTM <- DocumentTermMatrix(dfCorpus) 
+  inspect(DTM)
+  
+  ng <- ngram(txt)
+  
 
+  
+}
 
 
 
