@@ -184,6 +184,21 @@ utils_spellCheckWord <- function(x = NA, protectedWords = NA) {
   return(x)
 }
 
+#' Count Stopwords
+#' 
+#' This is a utility function that will count the number of stopwords 
+#' present in a string.
+#' 
+#' @param x A string.
+#'
+#' @return An integer value indicating how many elements of x are an English stopword.
+utils_countStopwords <- function(x = NA) {
+  ## Break the string into individual words
+  x <- unlist(strsplit(x, split = " "))
+  ## Return the number of stopwords
+  return(length(intersect(x, stopwords("en"))))
+}
+
 ####################################################################################
 ## Initialize data scrubbing functions
 ####################################################################################
@@ -248,29 +263,48 @@ import_fetchProtectedWords <- function() {
 ## Initialize data assembly functions
 ####################################################################################
 
-#' Construct corpus
+#' Construct Ngrams
 #' 
-#' This function constructs a corpus from a vector of strings that have been passed
-#' into it.
+#' This function constructs the most commonly used Ngrams from a corpus of tweets.
+#' The corpus of tweets is derived from a data set that has been provided to the
+#' function.
 #' 
-#' @param txt A vector of strings.
+#' @param data A data frame containing cleaned twitter data.
+#' @param nGrams The number of elements contained in each ngram.
+#' @param threshold The minimum frequency an ngram must be used to be returned.
 #'
-#' @return A compiled corpus of words.
-assemble_constructCorpus <- function(txt) {
+#' @return A data frame containing the most commonly occuring ngrams.
+assemble_constructNgrams <- function(data = NA, nGrams = 2, threshold = 0.001) {
   
-  ## Transform text to lowercase
-  txt <- tolower(txt)
-  ## Replace excess whitespace
-  txt <- str_replace(gsub("\\s+", " ", str_trim(txt)), "B", "b")
-  ## Create a bag of words
-  dfCorpus = Corpus(VectorSource(txt)) 
+  ## Put all of the tweets into one large corpus
+  myCorpus <- paste(data$text, collapse = ". ")
   
-  DTM <- DocumentTermMatrix(dfCorpus) 
-  inspect(DTM)
+  ## Now remove all punctuation
+  myCorpus <- gsub("[[:punct:]]", "", myCorpus, perl=TRUE)
   
-  ng <- ngram(txt)
+  ## Format the data by transforming to lowercase and removing excess whitespace
+  myCorpus <- tolower(myCorpus)
+  myCorpus <- str_replace(gsub("\\s+", " ", str_trim(myCorpus)), "B", "b")
   
-
+  ## Create the Ngrams
+  ng <- ngram(myCorpus, n = nGrams)
+  
+  ## Put the results into a data frame
+  ng <- as.data.frame(get.phrasetable(ng))
+  
+  ## Now I want to identify the number of stopwords contained
+  ## in each ngram. A lot of these ngrams are combinations of
+  ## two stopwords. These are not useful to me.
+  ng$stopwords <- apply(ng[match("ngrams", names(ng))], 1, utils_countStopwords)
+  
+  ## Remove any ngram where all words are stopwords
+  ng <- subset(ng, stopwords < nGrams)
+  
+  ## Isolate only the ngrams whose frequencies exceed the specified threshold
+  ng <- subset(ng, prop > threshold)
+  
+  ## Return
+  return(ng)
   
 }
 
