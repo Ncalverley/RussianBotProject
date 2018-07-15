@@ -15,6 +15,8 @@ library(data.table)
 library(ggplot2)
 library(hunspell)
 library(tm)
+library(tidytext)
+library(stringr)
 
 ####################################################################################
 ## Initialize data import functions
@@ -199,6 +201,36 @@ utils_countStopwords <- function(x = NA) {
   return(length(intersect(x, stopwords("en"))))
 }
 
+#' Clean Text
+#' 
+#' This is a utility function that will clean a set of text by removing all punctuation
+#' and transforming everything to lowercase.
+#' 
+#' @param x A string.
+#'
+#' @return The cleaned string.
+utils_cleanText <- function(x = NA) {
+  ## Remove all punctuation
+  x <- gsub("[[:punct:]]", "", x, perl=TRUE)
+  ## Format the text by transforming to lowercase and removing excess whitespace
+  x <- tolower(x)
+  x <- str_replace(gsub("\\s+", " ", str_trim(x)), "B", "b")
+  ## Return
+  return(x)
+}
+
+#' Calculate Modal Value
+#' 
+#' This is a utility function that provides a basic Mode function.
+#' 
+#' @param x A string.
+#'
+#' @return The cleaned string.
+utils_calcMode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 ####################################################################################
 ## Initialize data scrubbing functions
 ####################################################################################
@@ -306,6 +338,76 @@ assemble_constructNgrams <- function(data = NA, nGrams = 2, threshold = 0.001) {
   ## Return
   return(ng)
   
+}
+
+#' Construct Lexical Scores
+#' 
+#' This function will analyze all of the tweets of a user, and construct the overall
+#' lexical score from all of their tweets. The specific score that is calculated depends
+#' on the data set that is provided to the function. For example, feeding the "afinn" 
+#' data set into the function will result in the average affinity score being calculated.
+#' 
+#' @param userID A numeric indicating the ID of the user.
+#' @param data A data frame containing all tweets by each user.
+#' @param sentData A data frame containing the lexical data and scores to be calculated.
+#' @param target A list containing a vector of strings. If this parameter is not specified,
+#' then all words in the user's tweets will be analyzed. Otherwise, the two words on either
+#' side of each target word will be analyzed for sentiment.
+#'
+#' @return A data frame containing the most commonly occuring ngrams.
+assemble_constructLexicalScore <- function(userID = NA, data = NA, sentData = NA, target = NA) {
+  ## Isolate the current user's tweets
+  data <- subset(data, user_id == userID)
+  ## Put all of the user's tweets into one corpus
+  userCorpus <- paste(data$text, collapse = ". ")
+  ## Clean the corpus
+  userCorpus <- utils_cleanText(userCorpus)
+  ## Split into individual words
+  userCorpus <- unlist(strsplit(userCorpus, split = " "))
+  ## Check if a list of target words has been provided. If it has, 
+  ## trim the userCorpus to only the target words and the two words
+  ## on either side of the target words.
+  if(class(target) == "list") {
+    ## Loop through each word in the target list, and identify
+    ## all places in the corpus where the word occurs.
+    for(idx in unlist(target)) {
+      ## Make sure the target appears in the corpus
+      if(length(intersect(idx, userCorpus)) > 0) {
+        ## Identify the index of the target word
+        locs <- match(intersect(idx, userCorpus), userCorpus)
+        ## Get the two words on either side of the target word
+        locs <- seq(from = locs-2, to = locs+2)
+        ## Bind the locations of the words to a master object. We need
+        ## this in case multiple target words have been specified.
+        if(!exists("allLocs")) {
+          allLocs <- locs; rm(locs)
+        } else {
+          allLocs <- unique(c(allLocs, locs)); rm(locs)
+        }
+        ## Remove any location indices that are out of bounds
+        allLocs <- allLocs[allLocs > 0 & allLocs <= length(userCorpus)]
+      }
+    }
+    ## Trim the user corpus to only the target words
+    if(exists("allLocs")) {
+      userCorpus <- userCorpus[allLocs]
+    } else {
+      userCorpus <- character(0)
+    }
+  }
+  ## Check to make sure data are remaining
+  if(length(userCorpus) > 0) {
+    ## Calculate sentiment for all words
+    if(is.numeric(sentData$score)) {
+      sentiment <- mean(sentData$score[match(intersect(sentData$word, userCorpus), sentData$word)])
+    } else {
+      sentiment <- utils_calcMode(sentData$score[match(intersect(sentData$word, userCorpus), sentData$word)])
+    }
+  } else {
+    sentiment <- NA
+  }
+  ## Return the sentiment
+  return(sentiment)
 }
 
 
