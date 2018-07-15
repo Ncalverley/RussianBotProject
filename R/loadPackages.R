@@ -55,7 +55,7 @@ utils_removeGarbage <- function(x = NA) {
   ## Remove all punctuation except # and @. We need to preserve
   ## these symbols so that other functions can detect and remove
   ## entire hashtags and user IDs from tweets.
-  x <- gsub("(?!#)(?!@)[[:punct:]]", "", x, perl=TRUE)
+  x <- gsub("(?!#)(?!@)[[:punct:]]", " ", x, perl=TRUE)
   ## Remove all non-ASCII characters
   x <- iconv(x, "latin1", "ASCII", sub="")
   ## Return the result
@@ -274,6 +274,46 @@ scrub_removeString <- function(txt = NA, strType = NA) {
   )
 }
 
+#' Replace String
+#' 
+#' Tweets often contain hashtags or user IDs that identify the subject of the tweet, rather
+#' than the person's actual name. In this case, we want to replace the hashtags or user ID
+#' handles with the person's actual name. This will allow the sentiment analysis algorithms
+#' to provide more information about how a twitter user feels about each person.
+#' 
+#' @param x A string.
+#' @param replacementWords A data frame containing a list of words and phrases to be replaced, 
+#' along with their replacement values.
+#'
+#' @return The updated string.
+scrub_replaceString <- function(txt = NA, replacementWords = NA) {
+  ## Break out the data into individual words
+  txt <- unlist(strsplit(txt, split = " "))
+  ## Identify any strings that have been specified for replacement
+  txt <- unlist(lapply(txt, scrub_updateWord, replacementWords = replacementWords))
+  ## Return the updated string
+  return(paste(txt, sep = " ", collapse = " "))
+}
+
+#' Update Word
+#' 
+#' This is a utility function to check if a string has been assigned a replacement value. 
+#' If it has, the function will return the replacement value for the string. Otherwise, it
+#' will return the string itself without any modification.
+#' 
+#' @param x A string.
+#' @param replacementWords A data frame containing a list of words and phrases to be replaced, 
+#' along with their replacement values.
+#'
+#' @return The updated string.
+scrub_updateWord <- function(x = NA, replacementWords = NA) {
+  if(x %in% replacementWords$word) {
+    return(replacementWords$replacement[replacementWords$word == x])
+  } else {
+    return(x)
+  }
+}
+
 ####################################################################################
 ## Initialize data import functions
 ####################################################################################
@@ -288,6 +328,17 @@ scrub_removeString <- function(txt = NA, strType = NA) {
 import_fetchProtectedWords <- function() {
   protectedWords <- read.csv(file = "data/protectedWords.csv", stringsAsFactors = FALSE)
   return(protectedWords$word)
+}
+
+#' Fetch Replacement Words
+#' 
+#' This is a utility function that imports a list of words that need to
+#' be replaced, as well as their replacement values.
+#'
+#' @return A vector of protected words.
+import_fetchReplacementWords <- function() {
+  replacementWords <- read.csv(file = "data/replacementWords.csv", stringsAsFactors = FALSE)
+  return(replacementWords)
 }
 
 

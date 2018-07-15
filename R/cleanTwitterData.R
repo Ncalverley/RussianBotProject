@@ -13,7 +13,18 @@
 tweetData <- import_loadTweets()
 
 ## Take a small sample for development
-tweetData <- tweetData[1:100, ]
+tweetData <- tweetData[1:1000, ]
+tweetData$original_text <- tweetData$text
+
+####################################################################################
+## Replace hashtags and user handles with actual persons' names
+####################################################################################
+
+## Load the replacement words
+replacementWords <- import_fetchReplacementWords()
+
+## Update hashtags
+tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_replaceString, replacementWords = replacementWords)
 
 ####################################################################################
 ## Clean the tweets by removing contaminants
