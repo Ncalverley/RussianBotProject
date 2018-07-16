@@ -46,136 +46,70 @@ names(loughran)[names(loughran) == "sentiment"] <- "score"
 ####################################################################################
 ## Calculate each user's overall sentiment
 ####################################################################################
-users$overall_sentiment <- apply(users[match("id", names(users))], 1, 
-                                 assemble_constructLexicalScore, 
-                                 data = tweetData, 
-                                 sentData = bing)
+users <- assemble_constructAllSentiment(data = users, 
+                                        tweetData = tweetData, 
+                                        target = NA, 
+                                        varName = "overall")
 
 ####################################################################################
-## Calculate each user's overall affinity
+## Calculate each user's overall sentiment towards Democrats
 ####################################################################################
-users$overall_affinity <- apply(users[match("id", names(users))], 1, 
-                                assemble_constructLexicalScore, 
-                                 data = tweetData, 
-                                 sentData = afinn)
+users <- assemble_constructAllSentiment(data = users, 
+                                        tweetData = tweetData, 
+                                        target = list("hillary", 
+                                                      "clinton",
+                                                      "obama",
+                                                      "democrats",
+                                                      "progressives"), 
+                                        varName = "democrats")
 
 ####################################################################################
-## Calculate each user's overall emotional sentiment
+## Calculate each user's overall sentiment towards Republicans
 ####################################################################################
-users$overall_emotion <- apply(users[match("id", names(users))], 1, 
-                               assemble_constructLexicalScore, 
-                               data = tweetData, 
-                               sentData = nrc)
+users <- assemble_constructAllSentiment(data = users, 
+                                        tweetData = tweetData, 
+                                        target = list("donald", 
+                                                      "trump",
+                                                      "pence",
+                                                      "republicans",
+                                                      "conservatives"), 
+                                        varName = "democrats")
 
 ####################################################################################
-## Calculate each user's overall loughran emotional sentiment
+## Calculate each user's overall sentiment towards Liberal Media
 ####################################################################################
-users$overall_loughran <- apply(users[match("id", names(users))], 1, 
-                                assemble_constructLexicalScore, 
-                                data = tweetData, 
-                                sentData = loughran)
+users <- assemble_constructAllSentiment(data = users, 
+                                        tweetData = tweetData, 
+                                        target = list("abc", 
+                                                      "cnn",
+                                                      "msnbc",
+                                                      "cbsnews",
+                                                      "nytimes",
+                                                      "washpost"), 
+                                        varName = "liberal_media")
 
 ####################################################################################
-## Calculate each user's overall sentiment towards Hillary Clinton
+## Calculate each user's overall sentiment towards Conservative Media
 ####################################################################################
-users$democratic_sentiment <- apply(users[match("id", names(users))], 1, 
-                                 assemble_constructLexicalScore, 
-                                 data = tweetData, 
-                                 sentData = bing,
-                                 target = list("hillary", 
-                                               "clinton",
-                                               "obama",
-                                               "democrats",
-                                               "progressives"))
+users <- assemble_constructAllSentiment(data = users, 
+                                        tweetData = tweetData, 
+                                        target = list("fox", 
+                                                      "foxnews",
+                                                      "breitbart",
+                                                      "drudge"), 
+                                        varName = "conservative_media")
 
-####################################################################################
-## Calculate each user's overall affinity towards Hillary Clinton
-####################################################################################
-users$democratic_affinity <- apply(users[match("id", names(users))], 1, 
-                                assemble_constructLexicalScore, 
-                                data = tweetData, 
-                                sentData = afinn,
-                                target = list("hillary", 
-                                              "clinton",
-                                              "obama",
-                                              "democrats",
-                                              "progressives"))
 
-####################################################################################
-## Calculate each user's overall emotional sentiment towards Hillary Clinton
-####################################################################################
-users$democratic_emotion <- apply(users[match("id", names(users))], 1, 
-                               assemble_constructLexicalScore, 
-                               data = tweetData, 
-                               sentData = nrc,
-                               target = list("hillary", 
-                                             "clinton",
-                                             "obama",
-                                             "democrats",
-                                             "progressives"))
 
-####################################################################################
-## Calculate each user's overall loughran emotional sentiment towards Hillary Clinton
-####################################################################################
-users$democratic_loughran <- apply(users[match("id", names(users))], 1, 
-                                assemble_constructLexicalScore, 
-                                data = tweetData, 
-                                sentData = loughran,
-                                target = list("hillary", 
-                                              "clinton",
-                                              "obama",
-                                              "democrats",
-                                              "progressives"))
 
-####################################################################################
-## Calculate each user's overall sentiment towards Hillary Clinton
-####################################################################################
-users$republican_sentiment <- apply(users[match("id", names(users))], 1, 
-                               assemble_constructLexicalScore, 
-                               data = tweetData, 
-                               sentData = bing,
-                               target = list("donald", 
-                                             "trump",
-                                             "pence",
-                                             "republicans",
-                                             "conservatives"))
 
-####################################################################################
-## Calculate each user's overall affinity towards Hillary Clinton
-####################################################################################
-users$republican_affinity <- apply(users[match("id", names(users))], 1, 
-                              assemble_constructLexicalScore, 
-                              data = tweetData, 
-                              sentData = afinn,
-                              target = list("donald", 
-                                            "trump",
-                                            "pence",
-                                            "republicans",
-                                            "conservatives"))
 
-####################################################################################
-## Calculate each user's overall emotional sentiment towards Hillary Clinton
-####################################################################################
-users$republican_emotion <- apply(users[match("id", names(users))], 1, 
-                             assemble_constructLexicalScore, 
-                             data = tweetData, 
-                             sentData = nrc,
-                             target = list("donald", 
-                                           "trump",
-                                           "pence",
-                                           "republicans",
-                                           "conservatives"))
 
-####################################################################################
-## Calculate each user's overall loughran emotional sentiment towards Hillary Clinton
-####################################################################################
-users$republican_loughran <- apply(users[match("id", names(users))], 1, 
-                              assemble_constructLexicalScore, 
-                              data = tweetData, 
-                              sentData = loughran,
-                              target = list("donald", 
-                                            "trump",
-                                            "pence",
-                                            "republicans",
-                                            "conservatives"))
+
+
+
+
+
+
+
 

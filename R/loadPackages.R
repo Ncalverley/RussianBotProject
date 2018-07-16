@@ -462,6 +462,73 @@ assemble_constructLexicalScore <- function(userID = NA, data = NA, sentData = NA
 }
 
 
+#' Construct All Sentiment Scores
+#' 
+#' This function is a wrapper function that will create all of the different sentiment scores
+#' for a specified set of target words.
+#' 
+#' @param userID A numeric indicating the ID of the user.
+#' @param data A data frame containing all tweets by each user.
+#' @param sentData A data frame containing the lexical data and scores to be calculated.
+#' @param target A list containing a vector of strings. If this parameter is not specified,
+#' then all words in the user's tweets will be analyzed. Otherwise, the two words on either
+#' side of each target word will be analyzed for sentiment.
+#'
+#' @return A data frame containing the most commonly occuring ngrams.
+assemble_constructAllSentiment <- function(data = NA, tweetData = NA, target = NA, varName = NA) {
+  
+  ####################################################################################
+  ## Calculate each user's overall sentiment
+  ####################################################################################
+  data$sentiment <- apply(data[match("id", names(data))], 1, 
+                          assemble_constructLexicalScore, 
+                          data = tweetData, 
+                          sentData = bing,
+                          target = target)
+  
+  ####################################################################################
+  ## Calculate each user's overall affinity
+  ####################################################################################
+  data$affinity <- apply(data[match("id", names(data))], 1, 
+                         assemble_constructLexicalScore, 
+                         data = tweetData, 
+                         sentData = afinn,
+                         target = target)
+  
+  ####################################################################################
+  ## Calculate each user's overall emotional sentiment
+  ####################################################################################
+  data$emotion <- apply(data[match("id", names(data))], 1, 
+                        assemble_constructLexicalScore, 
+                        data = tweetData, 
+                        sentData = nrc,
+                        target = target)
+  
+  ####################################################################################
+  ## Calculate each user's overall loughran emotional sentiment
+  ####################################################################################
+  data$loughran <- apply(data[match("id", names(data))], 1, 
+                         assemble_constructLexicalScore, 
+                         data = tweetData, 
+                         sentData = loughran,
+                         target = target)
+  
+  ####################################################################################
+  ## Append the specified variable name onto the sentiment fields
+  ####################################################################################
+  names(data)[names(data) == "sentiment"] <- paste(names(data)[names(data) == "sentiment"], varName, sep = "_")
+  names(data)[names(data) == "affinity"] <- paste(names(data)[names(data) == "affinity"], varName, sep = "_")
+  names(data)[names(data) == "emotion"] <- paste(names(data)[names(data) == "emotion"], varName, sep = "_")
+  names(data)[names(data) == "loughran"] <- paste(names(data)[names(data) == "loughran"], varName, sep = "_")
+  
+  
+  ## Return the data
+  return(data)
+  
+}
+
+
+
 
 ####################################################################################
 ## Set global variables
