@@ -1,5 +1,5 @@
 ####################################################################################
-##                            CONSTRUCT CORPORA
+##                            CLEAN RUSSIAN TROLL DATA
 ##
 ## This file will import the twitter data containing the full tweets of all the 
 ## Russian-linked troll accounts, and construct the corpora for each account.
@@ -60,25 +60,11 @@ tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_rem
 ## Remove Retweets
 tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_removeString, strType = "retweet")
 
-# ####################################################################################
-# ## Run a spellchecker on the tweets - we want to identify any mis-spelled words and
-# ## replace them with their correct versions.
-# ####################################################################################
-# 
-# ## Load the list of protected words
-# protectedWords <- import_fetchProtectedWords()
-# 
-# ## Run the spellcheck
-# tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, 
-#                         utils_spellCheckTweet, 
-#                         protectedWords = protectedWords)
-
-
 ####################################################################################
 ## Save the cleaned data
 ####################################################################################
 
-save(tweetData, file = "data/cleanedTweetData.RData")
+save(tweetData, file = "data/cleanedRussianTweetData.RData")
 rm(tweetData)
 
 

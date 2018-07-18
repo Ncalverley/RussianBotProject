@@ -28,7 +28,7 @@ library(stringr)
 #'
 #' @return A data frame containing the raw tweet data.
 import_loadTweets <- function() {
-  data <- read.csv(file = "data/tweets.csv", stringsAsFactors = FALSE)
+  data <- read.csv(file = "data/russianTweets.csv", stringsAsFactors = FALSE)
   return(data)
 }
 
@@ -398,19 +398,16 @@ assemble_constructNgrams <- function(data = NA, nGrams = 2, threshold = 0.001) {
 #' on the data set that is provided to the function. For example, feeding the "afinn" 
 #' data set into the function will result in the average affinity score being calculated.
 #' 
-#' @param userID A numeric indicating the ID of the user.
-#' @param data A data frame containing all tweets by each user.
+#' @param txt A tweet text to be analyzed.
 #' @param sentData A data frame containing the lexical data and scores to be calculated.
 #' @param target A list containing a vector of strings. If this parameter is not specified,
 #' then all words in the user's tweets will be analyzed. Otherwise, the two words on either
 #' side of each target word will be analyzed for sentiment.
 #'
 #' @return A data frame containing the most commonly occuring ngrams.
-assemble_constructLexicalScore <- function(userID = NA, data = NA, sentData = NA, target = NA) {
-  ## Isolate the current user's tweets
-  data <- subset(data, user_id == userID)
+assemble_constructLexicalScore <- function(txt, sentData = NA, target = NA) {
   ## Put all of the user's tweets into one corpus
-  userCorpus <- paste(data$text, collapse = ". ")
+  userCorpus <- paste(txt, collapse = ". ")
   ## Clean the corpus
   userCorpus <- utils_cleanText(userCorpus)
   ## Split into individual words
@@ -475,41 +472,41 @@ assemble_constructLexicalScore <- function(userID = NA, data = NA, sentData = NA
 #' side of each target word will be analyzed for sentiment.
 #'
 #' @return A data frame containing the most commonly occuring ngrams.
-assemble_constructAllSentiment <- function(data = NA, tweetData = NA, target = NA, varName = NA) {
+assemble_constructAllSentiment <- function(data = NA, target = NA, varName = NA, sentData = NA) {
   
   ####################################################################################
   ## Calculate each user's overall sentiment
   ####################################################################################
-  data$sentiment <- apply(data[match("id", names(data))], 1, 
-                          assemble_constructLexicalScore, 
-                          data = tweetData, 
+  print("Running overall sentiment")
+  data$sentiment <- apply(data[match("text", names(data))], 1, 
+                          assemble_constructLexicalScore,  
                           sentData = bing,
                           target = target)
   
   ####################################################################################
   ## Calculate each user's overall affinity
   ####################################################################################
-  data$affinity <- apply(data[match("id", names(data))], 1, 
+  print("Running overall affinity")
+  data$affinity <- apply(data[match("text", names(data))], 1, 
                          assemble_constructLexicalScore, 
-                         data = tweetData, 
                          sentData = afinn,
                          target = target)
   
   ####################################################################################
   ## Calculate each user's overall emotional sentiment
   ####################################################################################
-  data$emotion <- apply(data[match("id", names(data))], 1, 
+  print("Running overall emotion")
+  data$emotion <- apply(data[match("text", names(data))], 1, 
                         assemble_constructLexicalScore, 
-                        data = tweetData, 
                         sentData = nrc,
                         target = target)
   
   ####################################################################################
   ## Calculate each user's overall loughran emotional sentiment
   ####################################################################################
-  data$loughran <- apply(data[match("id", names(data))], 1, 
+  print("Running overall loughran")
+  data$loughran <- apply(data[match("text", names(data))], 1, 
                          assemble_constructLexicalScore, 
-                         data = tweetData, 
                          sentData = loughran,
                          target = target)
   

@@ -11,9 +11,7 @@
 ####################################################################################
 ## Load the data sets
 ####################################################################################
-
 load(file = "data/cleanedTweetData.RData")
-users <- read.csv("data/users.csv", stringsAsFactors = FALSE)
 positive_words <- read.csv("data/positive_words.csv", stringsAsFactors = FALSE)
 negative_words <- read.csv("data/negative_words.csv", stringsAsFactors = FALSE)
 
@@ -46,58 +44,53 @@ names(loughran)[names(loughran) == "sentiment"] <- "score"
 ####################################################################################
 ## Calculate each user's overall sentiment
 ####################################################################################
-users <- assemble_constructAllSentiment(data = users, 
-                                        tweetData = tweetData, 
-                                        target = NA, 
-                                        varName = "overall")
+tweetData <- assemble_constructAllSentiment(data = tweetData, 
+                                            target = NA, 
+                                            varName = "overall")
 
 ####################################################################################
 ## Calculate each user's overall sentiment towards Democrats
 ####################################################################################
-users <- assemble_constructAllSentiment(data = users, 
-                                        tweetData = tweetData, 
-                                        target = list("hillary", 
-                                                      "clinton",
-                                                      "obama",
-                                                      "democrats",
-                                                      "progressives"), 
-                                        varName = "democrats")
+tweetData <- assemble_constructAllSentiment(data = tweetData,
+                                            target = list("hillary", 
+                                                          "clinton",
+                                                          "obama",
+                                                          "democrats",
+                                                          "progressives"), 
+                                            varName = "democrats")
 
 ####################################################################################
 ## Calculate each user's overall sentiment towards Republicans
 ####################################################################################
-users <- assemble_constructAllSentiment(data = users, 
-                                        tweetData = tweetData, 
-                                        target = list("donald", 
-                                                      "trump",
-                                                      "pence",
-                                                      "republicans",
-                                                      "conservatives"), 
-                                        varName = "democrats")
+tweetData <- assemble_constructAllSentiment(data = tweetData,
+                                            target = list("donald", 
+                                                          "trump",
+                                                          "pence",
+                                                          "republicans",
+                                                          "conservatives"), 
+                                            varName = "democrats")
 
 ####################################################################################
 ## Calculate each user's overall sentiment towards Liberal Media
 ####################################################################################
-users <- assemble_constructAllSentiment(data = users, 
-                                        tweetData = tweetData, 
-                                        target = list("abc", 
-                                                      "cnn",
-                                                      "msnbc",
-                                                      "cbsnews",
-                                                      "nytimes",
-                                                      "washpost"), 
-                                        varName = "liberal_media")
+tweetData <- assemble_constructAllSentiment(data = tweetData, 
+                                            target = list("abc", 
+                                                          "cnn",
+                                                          "msnbc",
+                                                          "cbsnews",
+                                                          "nytimes",
+                                                          "washpost"), 
+                                            varName = "liberal_media")
 
 ####################################################################################
 ## Calculate each user's overall sentiment towards Conservative Media
 ####################################################################################
-users <- assemble_constructAllSentiment(data = users, 
-                                        tweetData = tweetData, 
-                                        target = list("fox", 
-                                                      "foxnews",
-                                                      "breitbart",
-                                                      "drudge"), 
-                                        varName = "conservative_media")
+tweetData <- assemble_constructAllSentiment(data = tweetData,
+                                            target = list("fox", 
+                                                          "foxnews",
+                                                          "breitbart",
+                                                          "drudge"), 
+                                            varName = "conservative_media")
 
 
 
