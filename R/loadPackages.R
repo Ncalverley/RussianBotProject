@@ -314,6 +314,22 @@ scrub_updateWord <- function(x = NA, replacementWords = NA) {
   }
 }
 
+#' Format Twitter Date
+#' 
+#' This is a utility function to format the date field as provided by Twitter
+#' 
+#' @param x A date.
+#'
+#' @return The updated date.
+scrub_formatDate <- function(x = NA) {
+  ## Break the string by whitespace
+  temp <- unlist(strsplit(x, split = " "))
+  ## Reassemble in the correct format
+  temp <- paste(paste0(temp[1], ","), temp[3], temp[2], temp[6], temp[4], temp[5])
+  ## Return
+  return(temp)
+}
+
 ####################################################################################
 ## Initialize data import functions
 ####################################################################################
@@ -524,8 +540,57 @@ assemble_constructAllSentiment <- function(data = NA, target = NA, varName = NA,
   
 }
 
-
-
+#' Construct User Profiles
+#' 
+#' This function will construct the overall sentiment profile for each
+#' user. This is done by simply taking the average (for numeric sentiments) 
+#' or the mode (for categorical sentiments) across all of the user's tweets. 
+#' We're going to calculate overall sentiment this way because if we instead 
+#' merge all of a user's tweets into one large corpus and analyze them that 
+#' way, we run the risk of getting biased sentiment results if we calculate 
+#' sentiment values across multiple tweets.
+#' 
+#' @param data A data frame containing all tweets by each user.
+#'
+#' @return A data frame containing the each user's sentiment profile.
+assemble_constructUserProfiles <- function(data) {
+  
+  ## Identify the fields that need to be calculated
+  calcFields <- names(data)[grep("sentiment", names(data))]
+  ## Remove the sentiment_ prefix
+  calcFields <- gsub("sentiment", "", calcFields)
+  ## Now identify all fields containing the values contained in the calcFields
+  ## object. This will get us all of our target fields to be aggregated.
+  allFields <- character(0)
+  for(i in calcFields) {
+    allFields <- c(allFields, names(data)[grep(i, names(data))])
+  }; rm(i, calcFields)
+  ## Remove duplicates
+  allFields <- unique(allFields)
+  ## Change the data to a data table
+  data <- data.table(data)
+  ## Loop through each field and calculate the mean or the mode
+  for(i in allFields) {
+    eval(parse(text = paste0("data$idx <- data$", i)))
+    if(is.numeric(data$idx)) {
+      temp <- data[, .(idx = mean(idx, na.rm=TRUE)),
+                   by = .(user_id)]
+    } else {
+      temp <- data[, .(idx = utils_calcMode(idx)),
+                   by = .(user_id)]
+    }
+    ## Change the name of the target field
+    names(temp)[names(temp) == "idx"] <- i
+    ## Merge onto one main data frame to be returned
+    if(!exists("userProfiles")) {
+      userProfiles <- temp; rm(temp)
+    } else {
+      userProfiles <- merge(userProfiles, temp, by = "user_id"); rm(temp)
+    }
+  }
+  ## Return the results
+  return(userProfiles)
+}
 
 ####################################################################################
 ## Set global variables
