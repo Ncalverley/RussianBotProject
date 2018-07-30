@@ -7,13 +7,20 @@
 ## 454 accounts that have been confirmed by Twitter as Russian troll accounts.
 ####################################################################################
 
+## Define the run mode. This can take on one of two values, "dev" or "prod". When
+## running in "dev" mode, data will be sampled to keep runtimes to a minimum. When
+## running in "prod" mode, the full data will be used.
+runMode <- "dev"
+
 ## Load all libraries
 source(file = "R/loadPackages.R")
 
+## Clean the data sets
+source(file = "R/cleanLegitTweetData.R")
+source(file = "R/cleanRussianTweetData.R")
 
-
-
-
+## Construct the final analysis data
+source(file = "R/constructAnalysisData.R")
 
 
 

@@ -1,5 +1,5 @@
 word,replacement
-@HillaryClinton,Hillary Clinton
+@hillaryclinton,Hillary Clinton
 @nytimes,nyt
 @mike_pence,Mike Pence
 @realdonaldtrump,Donald Trump
@@ -7,21 +7,29 @@ word,replacement
 @cnn,cnn
 @msnbc,msnbc
 @cbsnews,cbsnews
-#BlackLivesMatter ,blm
-#BLM,blm
+#blacklivesmatter,blm
 #blm,blm
-#CrookedHillary,Hillary Clinton
 #crookedhillary,Hillary Clinton
-#Crookedhillary,Hillary Clinton
-#crookedHillary,Hillary Clinton
-#DonaldTrump,Donald Trump
-#Trump,Donald Trump
 #donaldtrump,Donald Trump
 #trump,Donald Trump
-#HackingHillary,Hillary Clinton
-@YouTube,youtube
-Trump's,Donald Trump
-Trumps,Donald Trump
-Hillary's,Hillary Clinton
-Hillarys,Hillary Clinton
-New York Times,nytimes
+#hackinghillary,Hillary Clinton
+@youtube,youtube
+trumps,Donald Trump
+hillarys,Hillary Clinton
+@lorettalynch,LorettaLynch
+#billclinton,Bill Clinton
+#trump2016,Donald Trump
+#Kaine,Tim Kaine
+#hillary,Hillary Clinton
+#americafirst,Donald Trump
+@blacktivists,blm
+#trumpforpresident,Donald Trump
+#cruzcrew,Ted Cruz
+@breitbartNews,Breitbart
+#obama,Obama
+#thanksobama,Obama
+#rubio,Rubio
+#feelthebern,feelthebern
+#makeamericagreatagain,maga
+#trumparmy,trumparmy
+#demdebate,demdebate

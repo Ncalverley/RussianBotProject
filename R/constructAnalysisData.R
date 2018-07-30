@@ -9,11 +9,56 @@
 
 
 ####################################################################################
-## Load the data sets
+## Load the cleaned data sets
 ####################################################################################
-load(file = "data/cleanedTweetData.RData")
-positive_words <- read.csv("data/positive_words.csv", stringsAsFactors = FALSE)
-negative_words <- read.csv("data/negative_words.csv", stringsAsFactors = FALSE)
+load(file = "data/cleanedLegitTweetData.RData"); legitData <- tweetData; rm(tweetData)
+load(file = "data/cleanedRussianTweetData.RData"); russianData <- tweetData; rm(tweetData)
+
+####################################################################################
+## Load the Russian users file to bring in user information for the Russian trolls
+####################################################################################
+russianUsers <- read_csv("data/russianUsers.csv")
+## Remove missing IDs
+russianUsers <- subset(russianUsers, !is.na(id))
+
+####################################################################################
+## Prepare the Russian tweet data for merging with their user profiles
+####################################################################################
+names(russianUsers)[names(russianUsers) == "created_at"] <- "user_created_at"
+names(russianUsers)[names(russianUsers) == "id"] <- "user_id"
+
+####################################################################################
+## Merge the Russian user account data onto their tweet data
+####################################################################################
+russianData <- merge(russianData, russianUsers, by = "user_id")
+
+####################################################################################
+## Rename a bunch of fields in the legit data to match the Russian troll data
+####################################################################################
+
+names(legitData)[names(legitData) == "user_id_str"] <- "user_id"
+names(legitData)[names(legitData) == "full_name"] <- "name"
+names(legitData)[names(legitData) == "expanded_url"] <- "expanded_urls"
+names(legitData)[names(legitData) == "id_str"] <- "tweet_id"
+names(legitData)[names(legitData) == "user_lang"] <- "lang"
+names(legitData)[names(legitData) == "created_at"] <- "created_str"
+
+####################################################################################
+## Trim down the data sets by intersecting the fields
+####################################################################################
+legitData <- legitData[,match(intersect(names(legitData), names(russianData)), names(legitData))]
+russianData <- russianData[,match(intersect(names(legitData), names(russianData)), names(russianData))]
+
+####################################################################################
+## Put in a troll status field
+####################################################################################
+russianData$troll <- 1
+legitData$troll <- 0
+
+####################################################################################
+## Bind the data together
+####################################################################################
+tweetData <- rbind(russianData, legitData); rm(russianData, legitData)
 
 ####################################################################################
 ## Extract sentiment data from tidytext and put into a data set
@@ -42,55 +87,17 @@ names(nrc)[names(nrc) == "sentiment"] <- "score"
 names(loughran)[names(loughran) == "sentiment"] <- "score"
 
 ####################################################################################
-## Calculate each user's overall sentiment
+## Identify the subject or subjects of each tweet
 ####################################################################################
-tweetData <- assemble_constructAllSentiment(data = tweetData, 
-                                           target = NA, 
-                                           varName = "overall")
+tweetData$subject <- apply(tweetData[match("text", names(tweetData))], 1, assemble_identifySubject,
+                           termCategories = termCategories)
 
 ####################################################################################
-## Calculate each user's overall sentiment towards Democrats
+## Calculate the sentiment and emotions of each tweet towards each major group.
+## This function WILL result in additional records being created.
 ####################################################################################
 tweetData <- assemble_constructAllSentiment(data = tweetData,
-                                            target = list("hillary", 
-                                                          "clinton",
-                                                          "obama",
-                                                          "democrats",
-                                                          "progressives"), 
-                                            varName = "democrats")
-
-####################################################################################
-## Calculate each user's overall sentiment towards Republicans
-####################################################################################
-tweetData <- assemble_constructAllSentiment(data = tweetData,
-                                            target = list("donald", 
-                                                          "trump",
-                                                          "pence",
-                                                          "republicans",
-                                                          "conservatives"), 
-                                            varName = "democrats")
-
-####################################################################################
-## Calculate each user's overall sentiment towards Liberal Media
-####################################################################################
-tweetData <- assemble_constructAllSentiment(data = tweetData, 
-                                            target = list("abc", 
-                                                          "cnn",
-                                                          "msnbc",
-                                                          "cbsnews",
-                                                          "nytimes",
-                                                          "washpost"), 
-                                            varName = "liberal_media")
-
-####################################################################################
-## Calculate each user's overall sentiment towards Conservative Media
-####################################################################################
-tweetData <- assemble_constructAllSentiment(data = tweetData,
-                                            target = list("fox", 
-                                                          "foxnews",
-                                                          "breitbart",
-                                                          "drudge"), 
-                                            varName = "conservative_media")
+                                            termCategories = termCategories)
 
 ####################################################################################
 ## Calculate each user's overall sentiment towards each of the target entities. This
@@ -141,11 +148,11 @@ userBasicProfileData$account_age <- as.numeric(userBasicProfileData$current_date
 ####################################################################################
 ## Construct the final analysis data set
 ####################################################################################
-analysisData <- merge(userBasicProfileData, userSentimentProfileData, by = "user_id")
+analysisData <- merge(userBasicProfileData, userSentimentProfileData, by = "user_id", all = TRUE)
 
 ####################################################################################
 ## Save and clean up
 ####################################################################################
 save(analysisData, file = "data/analysisData.RData")
 rm(analysisData, userBasicProfileData, userSentimentProfileData, afinn, bing,
-   loughran, nrc, negative_words, positive_words, tweetData)
+   loughran, nrc, tweetData)

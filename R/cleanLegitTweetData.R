@@ -12,9 +12,11 @@
 
 load(file = "data/legitTwitterData.RData")
 
-## Take a small sample for development
-tweetData <- tweetData[1:1000, ]
-tweetData$original_text <- tweetData$text
+## If running in dev mode, take a small sample for development
+if(runMode == "dev") {
+  tweetData <- tweetData[1:10000, ]
+  tweetData$original_text <- tweetData$text
+}
 
 ####################################################################################
 ## Replace hashtags and user handles with actual persons' names

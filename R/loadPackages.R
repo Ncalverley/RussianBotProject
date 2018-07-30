@@ -5,8 +5,6 @@
 ## initializing any required custom functions and global parameters.
 ####################################################################################
 
-
-
 ####################################################################################
 ## Load required packages
 ####################################################################################
@@ -17,6 +15,10 @@ library(hunspell)
 library(tm)
 library(tidytext)
 library(stringr)
+library(keras)
+library(caret)
+library(readr)
+library(dplyr)
 
 ####################################################################################
 ## Initialize data import functions
@@ -231,6 +233,20 @@ utils_calcMode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
+#' Get Categorical Terms
+#' 
+#' This is a utility function that imports a list of strings, and returns the 
+#' categorical terms associated with each string.
+#' 
+#' @param x A string.
+#' @param termCategories
+#'
+#' @return The cleaned string.
+utils_getCatTerms <- function(x = NA, termCategories = NA) {
+  termCategories <- termCategories[match(intersect(x, termCategories$term), termCategories$term), ]
+  return(termCategories$category)
+}
+
 ####################################################################################
 ## Initialize data scrubbing functions
 ####################################################################################
@@ -287,6 +303,19 @@ scrub_removeString <- function(txt = NA, strType = NA) {
 #'
 #' @return The updated string.
 scrub_replaceString <- function(txt = NA, replacementWords = NA) {
+  ## Remove punctuation except '@' and '#' symbols
+  txt <- gsub("(?!#)(?!@)[[:punct:]]", " ", txt, perl=TRUE)
+  ## Define the list of characters that are considered garbage.
+  garbage <- c("\n", "&amp", "https", "http")
+  ## Remove all garbage characters from the word by replacing them with spaces
+  for(i in garbage) {txt <- gsub(i, " ", txt); rm(i, garbage)}
+  ## Remove all non-ASCII characters
+  txt <- iconv(txt, "latin1", "ASCII", sub="")
+  ## Change all text to lowercase
+  txt <- tolower(txt)
+  ## Check for any multi-word keywords, and replace them manually
+  if(length(grep("new york times", txt)) > 0)
+    txt <- gsub("new york times", "nytimes", txt)
   ## Break out the data into individual words
   txt <- unlist(strsplit(txt, split = " "))
   ## Identify any strings that have been specified for replacement
@@ -328,6 +357,25 @@ scrub_formatDate <- function(x = NA) {
   temp <- paste(paste0(temp[1], ","), temp[3], temp[2], temp[6], temp[4], temp[5])
   ## Return
   return(temp)
+}
+
+#' Identify Hashtags
+#' 
+#' This function will examine each tweet, and store the hashtags contained within the tweet.
+#' The "hashtags" field provided by twitter does not accurately reflect the hashtags contained
+#' in each tweet, so we need to do this on our own.
+#' 
+#' @param x A string.
+#' @param replacementWords A data frame containing a list of words and phrases to be replaced, 
+#' along with their replacement values.
+#'
+#' @return The updated string.
+scrub_updateWord <- function(x = NA, replacementWords = NA) {
+  if(x %in% replacementWords$word) {
+    return(replacementWords$replacement[replacementWords$word == x])
+  } else {
+    return(x)
+  }
 }
 
 ####################################################################################
@@ -474,66 +522,86 @@ assemble_constructLexicalScore <- function(txt, sentData = NA, target = NA) {
   return(sentiment)
 }
 
+expand.grid.df <- function(...) Reduce(function(...) merge(..., by=NULL), list(...))
+
+assemble_expandSubjects <- function(funcData = NA, termCategories = NA) {
+  ## Identify the overall categorical terms each tweet contains
+  catTerms <- unique(utils_getCatTerms(x = unlist(funcData$subject), termCategories = termCategories))
+  ## Check to make sure there were terms found
+  if(length(catTerms) > 0) {
+    funcData$subject <- NULL; funcData <- expand.grid.df(funcData, data.frame("category" = catTerms))
+  }
+  ## Return the data
+  return(funcData)
+}
 
 #' Construct All Sentiment Scores
 #' 
 #' This function is a wrapper function that will create all of the different sentiment scores
 #' for a specified set of target words.
 #' 
-#' @param userID A numeric indicating the ID of the user.
 #' @param data A data frame containing all tweets by each user.
-#' @param sentData A data frame containing the lexical data and scores to be calculated.
-#' @param target A list containing a vector of strings. If this parameter is not specified,
-#' then all words in the user's tweets will be analyzed. Otherwise, the two words on either
-#' side of each target word will be analyzed for sentiment.
+#' @param termCategories A data frame containing the categorical terms global object.
 #'
 #' @return A data frame containing the most commonly occuring ngrams.
-assemble_constructAllSentiment <- function(data = NA, target = NA, varName = NA, sentData = NA) {
+assemble_constructAllSentiment <- function(data = NA, termCategories = NA) {
   
+  ####################################################################################
+  ## Break out each tweet by the overall categorical terms it contains. For example,
+  ## if the main subjects of a tweet were "hillary clinton" and "donald trump", this
+  ## will result in the tweet being duplicated. One of the records will have a new
+  ## subject of "democrats", and the additional record will have a new subject of
+  ## "republicans".
+  ####################################################################################
+  
+  print("Expanding the data...")
+  
+  ## Expand the tweet data
+  data <- suppressWarnings(apply(data, 1, FUN = assemble_expandSubjects, termCategories = termCategories) %>% bind_rows())
+
   ####################################################################################
   ## Calculate each user's overall sentiment
   ####################################################################################
-  print("Running overall sentiment")
+  
+  print("Constructing overall sentiment scores...")
+  
   data$sentiment <- apply(data[match("text", names(data))], 1, 
                           assemble_constructLexicalScore,  
                           sentData = bing,
-                          target = target)
+                          target = NA)
   
   ####################################################################################
   ## Calculate each user's overall affinity
   ####################################################################################
-  print("Running overall affinity")
+  
+  print("Constructing affinity scores...")
+  
   data$affinity <- apply(data[match("text", names(data))], 1, 
                          assemble_constructLexicalScore, 
                          sentData = afinn,
-                         target = target)
+                         target = NA)
   
   ####################################################################################
   ## Calculate each user's overall emotional sentiment
   ####################################################################################
-  print("Running overall emotion")
+  
+  print("Constructing emotion categories...")
+  
   data$emotion <- apply(data[match("text", names(data))], 1, 
                         assemble_constructLexicalScore, 
                         sentData = nrc,
-                        target = target)
+                        target = NA)
   
   ####################################################################################
   ## Calculate each user's overall loughran emotional sentiment
   ####################################################################################
-  print("Running overall loughran")
+  
+  print("Constructing loughran categories...")
+  
   data$loughran <- apply(data[match("text", names(data))], 1, 
                          assemble_constructLexicalScore, 
                          sentData = loughran,
-                         target = target)
-  
-  ####################################################################################
-  ## Append the specified variable name onto the sentiment fields
-  ####################################################################################
-  names(data)[names(data) == "sentiment"] <- paste(names(data)[names(data) == "sentiment"], varName, sep = "_")
-  names(data)[names(data) == "affinity"] <- paste(names(data)[names(data) == "affinity"], varName, sep = "_")
-  names(data)[names(data) == "emotion"] <- paste(names(data)[names(data) == "emotion"], varName, sep = "_")
-  names(data)[names(data) == "loughran"] <- paste(names(data)[names(data) == "loughran"], varName, sep = "_")
-  
+                         target = NA)
   
   ## Return the data
   return(data)
@@ -554,30 +622,19 @@ assemble_constructAllSentiment <- function(data = NA, target = NA, varName = NA,
 #'
 #' @return A data frame containing the each user's sentiment profile.
 assemble_constructUserProfiles <- function(data) {
-  
-  ## Identify the fields that need to be calculated
-  calcFields <- names(data)[grep("sentiment", names(data))]
-  ## Remove the sentiment_ prefix
-  calcFields <- gsub("sentiment", "", calcFields)
-  ## Now identify all fields containing the values contained in the calcFields
-  ## object. This will get us all of our target fields to be aggregated.
-  allFields <- character(0)
-  for(i in calcFields) {
-    allFields <- c(allFields, names(data)[grep(i, names(data))])
-  }; rm(i, calcFields)
-  ## Remove duplicates
-  allFields <- unique(allFields)
+  ## Remove data records with missing categories
+  data <- subset(data, !is.na(category))
   ## Change the data to a data table
   data <- data.table(data)
-  ## Loop through each field and calculate the mean or the mode
-  for(i in allFields) {
+  ## Loop through each of the sentiment fields and calculate the mean or the mode
+  for(i in c("sentiment", "affinity", "emotion", "loughran")) {
     eval(parse(text = paste0("data$idx <- data$", i)))
     if(is.numeric(data$idx)) {
       temp <- data[, .(idx = mean(idx, na.rm=TRUE)),
-                   by = .(user_id)]
+                   by = .(user_id, category)]
     } else {
       temp <- data[, .(idx = utils_calcMode(idx)),
-                   by = .(user_id)]
+                   by = .(user_id, category)]
     }
     ## Change the name of the target field
     names(temp)[names(temp) == "idx"] <- i
@@ -585,19 +642,173 @@ assemble_constructUserProfiles <- function(data) {
     if(!exists("userProfiles")) {
       userProfiles <- temp; rm(temp)
     } else {
-      userProfiles <- merge(userProfiles, temp, by = "user_id"); rm(temp)
+      userProfiles <- merge(userProfiles, temp, by = c("user_id", "category")); rm(temp)
     }
   }
+  ## Convert user profiles to wide format
+  for(i in unique(userProfiles$category)) {
+    tempdata <- subset(userProfiles, category == i)
+    tempdata$category <- NULL
+    for(j in 2:ncol(tempdata)) {
+      names(tempdata)[j] <- paste(names(tempdata)[j], i, sep = "_")
+    }; rm(j)
+    if(!exists("finalData")) {
+      finalData <- tempdata; rm(tempdata)
+    } else {
+      finalData <- merge(finalData, tempdata, by = "user_id", all = TRUE)
+    }
+  }
+  ## Calculate the total number of tweets made per user, and the number of 
+  ## tweets per category
+  temp_all <- data[, .(total_tweets = .N),
+               by = .(user_id)]
+  temp_cat <- data[, .(total_tweets_by_cat = .N),
+               by = .(user_id, category)]
+  temp <- merge(temp_cat, temp_all, by = "user_id"); rm(temp_cat)
+  temp$pct <- temp$total_tweets_by_cat / temp$total_tweets
+  ## Convert categorical tweet percentages to wide format
+  for(i in unique(temp$category)) {
+    tempdata <- subset(temp, category == i)
+    tempdata$category <- NULL
+    for(j in 2:ncol(tempdata)) {
+      names(tempdata)[j] <- paste(names(tempdata)[j], i, sep = "_")
+    }; rm(j)
+    finalData <- merge(finalData, tempdata, by = "user_id", all = TRUE); rm(tempdata)
+  }
+  ## Merge the total tweet counts onto the final data
+  finalData <- merge(finalData, temp_all, by = "user_id", all = TRUE)
   ## Return the results
-  return(userProfiles)
+  return(finalData)
+}
+
+#' Identify Subject
+#' 
+#' This function will identify the subject of a tweet by looking for the most commonly-
+#' occuring target word or words.
+#' 
+#' @param txt A data frame containing all tweets by each user.
+#' @param termCategories A data frame containing the list of key terms and their 
+#' associated category. See the description of the termCategories object for more info.
+#'
+#' @return A list of the most frequently occuring target words.
+assemble_identifySubject <- function(txt, termCategories = NA) {
+  ## Clean the tweet
+  txt <- utils_cleanText(txt)
+  ## Split into individual words
+  txt <- unlist(strsplit(txt, split = " "))
+  ## Isolate the target words
+  txt <- txt[match(intersect(txt, termCategories$term), txt)]
+  ## Check if there were no target words present
+  if(length(txt) == 0) {
+    return(NA)
+  } else {
+    ## Calculate the number of occurances of each word
+    txt <- table(unlist(txt))
+    ## Preserve only the most occuring words
+    txt <- txt[txt == max(txt)]
+    ## Return
+    return(names(txt))
+  }
 }
 
 ####################################################################################
 ## Set global variables
 ####################################################################################
 
+## Create an object that holds the categories of entities that we want to analyze the 
+## sentiment for. For example, terms like "hillary", "clinton", and "obama" will all 
+## go into the category of "democrats".
+termCategories <- data.frame("term" = c("hillary",
+                                        "clinton",
+                                        "barack",
+                                        "obama",
+                                        "democrats",
+                                        "progressives",
+                                        "snowflake",
+                                        "snowflakes",
+                                        "liberal",
+                                        "liberals",
+                                        "donald", 
+                                        "trump",
+                                        "pence",
+                                        "republicans",
+                                        "conservatives",
+                                        "abc", 
+                                        "cnn",
+                                        "msnbc",
+                                        "cbsnews",
+                                        "nytimes",
+                                        "washpost",
+                                        "fox", 
+                                        "foxnews",
+                                        "breitbart",
+                                        "drudge",
+                                        "drudgereport",
+                                        "washtimes",
+                                        "lorettalynch",
+                                        "gop",
+                                        "bannon",
+                                        "kaine",
+                                        "kaepernick",
+                                        "takeaknee",
+                                        "cruz",
+                                        "maga",
+                                        "rubio",
+                                        "sanders",
+                                        "feelthebern",
+                                        "trumparmy",
+                                        "blm",
+                                        "carson",
+                                        "dems",
+                                        "demdebate"),
+                             "category" = NA)
 
+termCategories$category[termCategories$term == "hillary"] <- "democrats"
+termCategories$category[termCategories$term == "clinton"] <- "democrats"
+termCategories$category[termCategories$term == "barack"] <- "democrats"
+termCategories$category[termCategories$term == "obama"] <- "democrats"
+termCategories$category[termCategories$term == "democrat"] <- "democrats"
+termCategories$category[termCategories$term == "democrats"] <- "democrats"
+termCategories$category[termCategories$term == "progressives"] <- "democrats"
+termCategories$category[termCategories$term == "snowflake"] <- "democrats"
+termCategories$category[termCategories$term == "snowflakes"] <- "democrats"
+termCategories$category[termCategories$term == "liberal"] <- "democrats"
+termCategories$category[termCategories$term == "liberals"] <- "democrats"
+termCategories$category[termCategories$term == "lorettalynch"] <- "democrats"
+termCategories$category[termCategories$term == "kaine"] <- "democrats"
+termCategories$category[termCategories$term == "kaepernick"] <- "democrats"
+termCategories$category[termCategories$term == "takeaknee"] <- "democrats"
+termCategories$category[termCategories$term == "sanders"] <- "democrats"
+termCategories$category[termCategories$term == "feelthebern"] <- "democrats"
+termCategories$category[termCategories$term == "blm"] <- "democrats"
+termCategories$category[termCategories$term == "dems"] <- "democrats"
+termCategories$category[termCategories$term == "demdebate"] <- "democrats"
 
+termCategories$category[termCategories$term == "donald"] <- "republicans"
+termCategories$category[termCategories$term == "trump"] <- "republicans"
+termCategories$category[termCategories$term == "pence"] <- "republicans"
+termCategories$category[termCategories$term == "republicans"] <- "republicans"
+termCategories$category[termCategories$term == "conservatives"] <- "republicans"
+termCategories$category[termCategories$term == "gop"] <- "republicans"
+termCategories$category[termCategories$term == "bannon"] <- "republicans"
+termCategories$category[termCategories$term == "maga"] <- "republicans"
+termCategories$category[termCategories$term == "cruz"] <- "republicans"
+termCategories$category[termCategories$term == "rubio"] <- "republicans"
+termCategories$category[termCategories$term == "trumparmy"] <- "republicans"
+termCategories$category[termCategories$term == "carson"] <- "republicans"
 
+termCategories$category[termCategories$term == "abc"] <- "liberal_media"
+termCategories$category[termCategories$term == "cnn"] <- "liberal_media"
+termCategories$category[termCategories$term == "msnbc"] <- "liberal_media"
+termCategories$category[termCategories$term == "cbsnews"] <- "liberal_media"
+termCategories$category[termCategories$term == "nytimes"] <- "liberal_media"
+termCategories$category[termCategories$term == "washpost"] <- "liberal_media"
+
+termCategories$category[termCategories$term == "fox"] <- "conservative_media"
+termCategories$category[termCategories$term == "foxnews"] <- "conservative_media"
+termCategories$category[termCategories$term == "breitbart"] <- "conservative_media"
+termCategories$category[termCategories$term == "drudge"] <- "conservative_media"
+termCategories$category[termCategories$term == "drudgereport"] <- "conservative_media"
+termCategories$category[termCategories$term == "washtimes"] <- "conservative_media"
 
 
