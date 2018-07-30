@@ -14,9 +14,14 @@ load(file = "data/legitTwitterData.RData")
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:10000, ]
+  tweetData <- tweetData[1:1000, ]
   tweetData$original_text <- tweetData$text
 }
+
+####################################################################################
+## Identify and store the hashtags used in each tweet
+####################################################################################
+tweetData$hashtags <- apply(tweetData[match("text", names(tweetData))], 1, scrub_storeHashtags)
 
 ####################################################################################
 ## Replace hashtags and user handles with actual persons' names

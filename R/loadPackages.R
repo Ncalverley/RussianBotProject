@@ -247,6 +247,25 @@ utils_getCatTerms <- function(x = NA, termCategories = NA) {
   return(termCategories$category)
 }
 
+#' Check for JSON Formatted String
+#' 
+#' This is a utility function that checks if a string is in JSON format.
+#' 
+#' @param x A string.
+#'
+#' @return Either FALSE, if the string is NOT a JSON, or the JSON-converted result if it is.
+utils_checkJSON <- function(x) {
+  out <- tryCatch({x = fromJSON(txt=x)},
+                  error=function(cond) {
+                    return(FALSE)
+                  },
+                  finally=function(cond) {
+                    return(TRUE)
+                  }
+  )
+  return(out)
+}
+
 ####################################################################################
 ## Initialize data scrubbing functions
 ####################################################################################
@@ -359,23 +378,26 @@ scrub_formatDate <- function(x = NA) {
   return(temp)
 }
 
-#' Identify Hashtags
+#' Store Hashtags
 #' 
 #' This function will examine each tweet, and store the hashtags contained within the tweet.
 #' The "hashtags" field provided by twitter does not accurately reflect the hashtags contained
 #' in each tweet, so we need to do this on our own.
 #' 
-#' @param x A string.
-#' @param replacementWords A data frame containing a list of words and phrases to be replaced, 
-#' along with their replacement values.
+#' @param txt A string.
 #'
-#' @return The updated string.
-scrub_updateWord <- function(x = NA, replacementWords = NA) {
-  if(x %in% replacementWords$word) {
-    return(replacementWords$replacement[replacementWords$word == x])
-  } else {
-    return(x)
-  }
+#' @return A list of hashtags found in the tweet.
+scrub_storeHashtags <- function(txt = NA) {
+  ## Break the tweet into its constituent words
+  txt <- unlist(strsplit(txt, split = " "))
+  ## Run each of the words through the hashtag identifier function
+  x <- unlist(lapply(txt, utils_identHashtag))
+  ## Keep the words that were identified as hashtags
+  txt <- txt[x]
+  ## Clean the results
+  if(length(txt) > 0) txt <- sapply(txt, utils_removeGarbage)
+  ## Return the hashtags as a list
+  return(as.vector(txt))
 }
 
 ####################################################################################
@@ -709,6 +731,81 @@ assemble_identifySubject <- function(txt, termCategories = NA) {
     ## Return
     return(names(txt))
   }
+}
+
+#' Identify Subject
+#' 
+#' This function will identify the 3 most commonly-used hashtags tweeted by each
+#' user, and return them as a list.
+#' 
+#' @param x All lists of hashtags contained across all of a user's tweets.
+#'
+#' @return A list of the 3 most frequently-used hashtags.
+assemble_identifyCommonHashtags <- function(x, count = 3) {
+  ## Check if there are at least 3 resu## Compile all of the user's hashtags into a single object
+  vec <- unlist(x)
+  ## Count the number of occurances of each hashtag
+  vec <- as.data.frame(table(vec))
+  if(nrow(vec) > 0) {
+    ## Order by frequency, highest to lowest
+    vec <- vec[order(-vec$Freq), ]
+    ## Keep the top 3
+    vec <- vec[1:3, ]
+    ## Change the hashtags to character format
+    vec$vec <- as.character(vec$vec)
+    ## If there were less than 3 hashtags but more than 0 hashtags,
+    ## there will be some NA values in the resulting data frame. We
+    ## need to replace these with a random hashtag that indicates a
+    ## blank value.
+    vec$Freq[is.na(vec$vec)] <- 1
+    vec$vec[is.na(vec$vec)] <- "99"
+    ## Return the hashtags
+    return(vec$vec)
+  } else {
+   return(c("99", "99", "99")) 
+  }
+}
+
+#' Remove JSON
+#' 
+#' This function converts a list of hashtags that are stored in JSON format
+#' to a list of strings.
+#' 
+#' @param txt A vector containing a list of hashtags.
+#'
+#' @return The same vector of words but with any and all hashtags removed.
+scrub_removeJSON <- function(txt = NA) {
+  ## Convert from JSON if necessary
+  test <- utils_checkJSON(x=txt)
+  if(class(test) != "logical") {
+    return(test)
+  } else {
+    return(txt)
+  }
+}
+
+#' Scrub Hashtags
+#' 
+#' This function cleans the hashtags before they are to be vectorized.
+#' 
+#' @param x A hashtag.
+#'
+#' @return The cleaned hashtag.
+scrub_cleanHashtags <- function(x) {
+  ## Remove all punctuation
+  x <- gsub("[[:punct:]]", " ", x, perl=TRUE)
+  ## Remove all non-ASCII characters
+  x <- iconv(x, "latin1", "ASCII", sub="")
+  ## Remove all leading and trailing whitespace
+  x <- sub("^\\s+", "", x)
+  x <- sub("\\s+$", "", x)
+  ## Convert to lowercase
+  x <- tolower(x)
+  ## Check for multiple items. If multiple items found,
+  ## keep only the first one.
+  x <- unlist(strsplit(x, split = " ")); x <- x[1]
+  ## Return
+  return(x)
 }
 
 ####################################################################################

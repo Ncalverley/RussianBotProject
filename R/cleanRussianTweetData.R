@@ -14,9 +14,14 @@ tweetData <- import_loadTweets()
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:10000, ]
+  tweetData <- tweetData[1:1000, ]
   tweetData$original_text <- tweetData$text
 }
+
+####################################################################################
+## Convert the hashtags from JSON format to strings
+####################################################################################
+tweetData$hashtags <- apply(tweetData[match("hashtags", names(tweetData))], 1, scrub_removeJSON)
 
 ####################################################################################
 ## Replace hashtags and user handles with actual persons' names
@@ -27,11 +32,6 @@ replacementWords <- import_fetchReplacementWords()
 
 ## Update hashtags
 tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_replaceString, replacementWords = replacementWords)
-
-####################################################################################
-## Create a list of hashtags contained within each tweet, and store it
-####################################################################################
-tweetData$hashtags <- apply(tweetData[match("text", names(tweetData))], 1, scrub_storeHashtags)
 
 ####################################################################################
 ## Clean the tweets by removing contaminants

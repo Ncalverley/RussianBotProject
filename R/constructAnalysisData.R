@@ -61,6 +61,39 @@ legitData$troll <- 0
 tweetData <- rbind(russianData, legitData); rm(russianData, legitData)
 
 ####################################################################################
+## Vectorize each user's most commonly-used hashtags
+####################################################################################
+
+## Determine each user's most commonly-used hashtags
+userHashtags <- data.table(tweetData)
+userHashtags <- userHashtags[, .(hashtag = assemble_identifyCommonHashtags(hashtags)),
+                             by = .(user_id)]
+
+## Convert the results back to a data frame
+userHashtags <- setDF(userHashtags)
+
+## Standardize the hashtags by cleaning them and transforming them all to lowercase
+userHashtags$hashtag <- apply(userHashtags[match("hashtag", names(userHashtags))], 1, scrub_cleanHashtags)
+
+## Vectorize the hashtags
+tokenizer <- text_tokenizer(num_words = length(unique(userHashtags$hashtag)))
+tokenizer %>% fit_text_tokenizer(unique(userHashtags$hashtag))
+temp <- texts_to_sequences(tokenizer, userHashtags$hashtag)
+for(i in 1:length(temp)) {
+  if(is.null(unlist(temp[i]))) {
+    userHashtags$hashtag[i] <- 99
+  } else {
+    userHashtags$hashtag[i] <- unlist(temp[i])
+  }
+}
+
+## Put in a key value for reshaping the data from long to wide
+userHashtags$key <- rep(c(1:3), times = nrow(userHashtags) / 3)
+
+## Reshape the data to wide format
+userHashtags <- reshape(userHashtags, idvar = "user_id", timevar = "key", direction = "wide")
+
+####################################################################################
 ## Extract sentiment data from tidytext and put into a data set
 ####################################################################################
 
@@ -148,7 +181,12 @@ userBasicProfileData$account_age <- as.numeric(userBasicProfileData$current_date
 ####################################################################################
 ## Construct the final analysis data set
 ####################################################################################
+
+## Merge the profile and sentiment data
 analysisData <- merge(userBasicProfileData, userSentimentProfileData, by = "user_id", all = TRUE)
+
+## Merge the profile and vectorized hashtag data
+analysisData <- merge(analysisData, userHashtags, by = "user_id", all = TRUE)
 
 ####################################################################################
 ## Save and clean up
