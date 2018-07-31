@@ -94,6 +94,43 @@ userHashtags$key <- rep(c(1:3), times = nrow(userHashtags) / 3)
 userHashtags <- reshape(userHashtags, idvar = "user_id", timevar = "key", direction = "wide")
 
 ####################################################################################
+## Vectorize each user's most commonly-linked websites
+##
+## This section takes FOREVER to run because of the function that transforms tiny
+## URLs into expanded URLs, and the addition of commonly-linked websites to the
+## model didn't significantly improve accuracy, so I'm commenting this out for now.
+####################################################################################
+
+# ## Determine each user's most commonly-used hashtags
+# userWebsites <- data.table(tweetData)
+# userWebsites <- userWebsites[, .(website = assemble_identifyCommonWebsites(expanded_urls)),
+#                              by = .(user_id)]
+# 
+# ## Convert the results back to a data frame
+# userWebsites <- setDF(userWebsites)
+# 
+# ## Standardize the hashtags by cleaning them and transforming them all to lowercase
+# userWebsites$website <- apply(userWebsites[match("website", names(userWebsites))], 1, scrub_cleanWebsites)
+# 
+# ## Vectorize the hashtags
+# tokenizer <- text_tokenizer(num_words = length(unique(userWebsites$website)))
+# tokenizer %>% fit_text_tokenizer(unique(userWebsites$website))
+# temp <- texts_to_sequences(tokenizer, userWebsites$website)
+# for(i in 1:length(temp)) {
+#   if(is.null(unlist(temp[i]))) {
+#     userWebsites$website[i] <- 99
+#   } else {
+#     userWebsites$website[i] <- unlist(temp[i])
+#   }
+# }
+# 
+# ## Put in a key value for reshaping the data from long to wide
+# userWebsites$key <- rep(c(1:3), times = nrow(userWebsites) / 3)
+# 
+# ## Reshape the data to wide format
+# userWebsites <- reshape(userWebsites, idvar = "user_id", timevar = "key", direction = "wide")
+
+####################################################################################
 ## Extract sentiment data from tidytext and put into a data set
 ####################################################################################
 
@@ -187,6 +224,9 @@ analysisData <- merge(userBasicProfileData, userSentimentProfileData, by = "user
 
 ## Merge the profile and vectorized hashtag data
 analysisData <- merge(analysisData, userHashtags, by = "user_id", all = TRUE)
+
+## Merge the profile and vectorized website data
+analysisData <- merge(analysisData, userWebsites, by = "user_id", all = TRUE)
 
 ####################################################################################
 ## Save and clean up

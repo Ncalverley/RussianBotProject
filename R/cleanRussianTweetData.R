@@ -14,14 +14,15 @@ tweetData <- import_loadTweets()
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:1000, ]
+  tweetData <- tweetData[1:10000, ]
   tweetData$original_text <- tweetData$text
 }
 
 ####################################################################################
-## Convert the hashtags from JSON format to strings
+## Convert the hashtags and expanded URLs from JSON format to strings
 ####################################################################################
 tweetData$hashtags <- apply(tweetData[match("hashtags", names(tweetData))], 1, scrub_removeJSON)
+tweetData$expanded_urls <- apply(tweetData[match("expanded_urls", names(tweetData))], 1, scrub_removeJSON)
 
 ####################################################################################
 ## Replace hashtags and user handles with actual persons' names

@@ -19,6 +19,8 @@ library(keras)
 library(caret)
 library(readr)
 library(dplyr)
+library(longurl)
+library(jsonlite)
 
 ####################################################################################
 ## Initialize data import functions
@@ -551,7 +553,9 @@ assemble_expandSubjects <- function(funcData = NA, termCategories = NA) {
   catTerms <- unique(utils_getCatTerms(x = unlist(funcData$subject), termCategories = termCategories))
   ## Check to make sure there were terms found
   if(length(catTerms) > 0) {
-    funcData$subject <- NULL; funcData <- expand.grid.df(funcData, data.frame("category" = catTerms))
+    funcData <- expand.grid.df(funcData, data.frame("category" = catTerms))
+  } else {
+    funcData$category <- NA
   }
   ## Return the data
   return(funcData)
@@ -579,7 +583,15 @@ assemble_constructAllSentiment <- function(data = NA, termCategories = NA) {
   print("Expanding the data...")
   
   ## Expand the tweet data
-  data <- suppressWarnings(apply(data, 1, FUN = assemble_expandSubjects, termCategories = termCategories) %>% bind_rows())
+  newData <- as.data.frame(matrix(nrow = 0, ncol = ncol(data)))
+  names(newData) <- names(data); newData$category <- character(0)
+  for(i in 1:nrow(data)) {
+    temp <- assemble_expandSubjects(funcData = data[i,], termCategories = termCategories)
+    newData <- rbind(newData, temp)
+  }; data <- newData; rm(newData)
+  
+  ## Faster solution, but not currently working
+  # data <- suppressWarnings(apply(data, 1, FUN = assemble_expandSubjects, termCategories = termCategories) %>% bind_rows())
 
   ####################################################################################
   ## Calculate each user's overall sentiment
@@ -733,7 +745,7 @@ assemble_identifySubject <- function(txt, termCategories = NA) {
   }
 }
 
-#' Identify Subject
+#' Identify Common Hashtags
 #' 
 #' This function will identify the 3 most commonly-used hashtags tweeted by each
 #' user, and return them as a list.
@@ -784,7 +796,7 @@ scrub_removeJSON <- function(txt = NA) {
   }
 }
 
-#' Scrub Hashtags
+#' Clean Hashtags
 #' 
 #' This function cleans the hashtags before they are to be vectorized.
 #' 
@@ -794,6 +806,117 @@ scrub_removeJSON <- function(txt = NA) {
 scrub_cleanHashtags <- function(x) {
   ## Remove all punctuation
   x <- gsub("[[:punct:]]", " ", x, perl=TRUE)
+  ## Remove all non-ASCII characters
+  x <- iconv(x, "latin1", "ASCII", sub="")
+  ## Remove all leading and trailing whitespace
+  x <- sub("^\\s+", "", x)
+  x <- sub("\\s+$", "", x)
+  ## Convert to lowercase
+  x <- tolower(x)
+  ## Check for multiple items. If multiple items found,
+  ## keep only the first one.
+  x <- unlist(strsplit(x, split = " ")); x <- x[1]
+  ## Return
+  return(x)
+}
+
+#' Identify Common Websites
+#' 
+#' This function will identify the 3 most commonly-linked websites tweeted by each
+#' user, and return them as a list.
+#' 
+#' @param x All lists of websites contained across all of a user's tweets.
+#'
+#' @return A list of the 3 most frequently-linked websites.
+assemble_identifyCommonWebsites <- function(x, count = 3) {
+  print(paste0("x = ", x))
+  ## Check if there are at least 3 resu## Compile all of the user's hashtags into a single object
+  vec <- unlist(x)
+  ## Expand the URL(s)
+  vec <- suppressWarnings(unlist(lapply(vec, scrub_expandURL)))
+  ## Modify the website by keeping only the parent website (eg. if the link shared is
+  ## "http://imdb.com/title/12345", the parent website is imdb.)
+  vec <- unlist(lapply(vec, scrub_cleanURL))
+  ## Count the number of occurances of each URL
+  vec <- as.data.frame(table(vec))
+  if(nrow(vec) > 0) {
+    ## Order by frequency, highest to lowest
+    vec <- vec[order(-vec$Freq), ]
+    ## Keep the top 3
+    vec <- vec[1:3, ]
+    ## Change the hashtags to character format
+    vec$vec <- as.character(vec$vec)
+    ## If there were less than 3 hashtags but more than 0 hashtags,
+    ## there will be some NA values in the resulting data frame. We
+    ## need to replace these with a random hashtag that indicates a
+    ## blank value.
+    vec$Freq[is.na(vec$vec)] <- 1
+    vec$vec[is.na(vec$vec)] <- "99"
+    ## Return the hashtags
+    return(vec$vec)
+  } else {
+    return(c("99", "99", "99")) 
+  }
+}
+
+#' Clean URLs
+#' 
+#' This function cleans a URL by identifying the parent website.
+#' 
+#' @param x A URL.
+#'
+#' @return The cleaned URL.
+scrub_cleanURL <- function(x) {
+  testGlobal <<- x
+  ## Identify the location of the 2nd and 3rd backslash
+  temp <- unlist(strsplit(x, split = ""))
+  ## Make sure the URL is valid
+  if(length(temp) > 1) {
+    idx1 <- which(temp == "/")[2] + 1
+    idx2 <- which(temp == "/")[3] - 1
+    ## Check if the second index is NA. If it is, it means that there
+    ## was no second backslash, and we can just take the URL to the end.
+    if(is.na(idx2)) idx2 <- length(temp)
+    ## Identify the parent website
+    x <- paste(temp[idx1:idx2], sep = "", collapse = "")
+  }
+  ## Return
+  return(x)
+}
+
+#' Expand URLs
+#' 
+#' This function expands a URL to its full form.
+#' 
+#' @param x A URL.
+#'
+#' @return The expanded URL.
+scrub_expandURL <- function(x) {
+  ## Expand the URL
+  big_url <- expand_urls(x)
+  ## Check the status code
+  if(is.na(big_url$status_code)) {
+    ## Return the original URL
+    return(big_url$orig_url)
+  } else {
+    if(big_url$status_code != 404) {
+      ## Return the expanded URL
+      return(big_url$expanded_url)
+    } else {
+      ## Return the original URL
+      return(big_url$orig_url)
+    }
+  }
+}
+
+#' Clean Websites
+#' 
+#' This function cleans the website URLs before they are to be vectorized.
+#' 
+#' @param x A URL.
+#'
+#' @return The cleaned URL.
+scrub_cleanWebsites <- function(x) {
   ## Remove all non-ASCII characters
   x <- iconv(x, "latin1", "ASCII", sub="")
   ## Remove all leading and trailing whitespace

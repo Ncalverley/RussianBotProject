@@ -14,7 +14,7 @@ load(file = "data/legitTwitterData.RData")
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:1000, ]
+  tweetData <- tweetData[1:10000, ]
   tweetData$original_text <- tweetData$text
 }
 
