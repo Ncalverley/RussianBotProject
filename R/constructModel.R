@@ -21,7 +21,9 @@ trainFields <- c("account_age",
                  "emotion_republicans",
                  "hashtag.1",
                  "hashtag.2",
-                 "hashtag.3")
+                 "hashtag.3",
+                 "hashtag.4",
+                 "hashtag.5")
 outcomeVar <- "troll"
 
 ####################################################################################
@@ -122,6 +124,7 @@ model %>% fit(
 
 ####################################################################################
 ## HIGHEST OBSERVED ACCURACY USING PROTOTYPE DATA: 0.9570
+## HIGHEST OBSERVED ACCURACY USING FULL DATA: 0.9310
 ####################################################################################
 
 

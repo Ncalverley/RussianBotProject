@@ -582,16 +582,9 @@ assemble_constructAllSentiment <- function(data = NA, termCategories = NA) {
   
   print("Expanding the data...")
   
-  ## Expand the tweet data
-  newData <- as.data.frame(matrix(nrow = 0, ncol = ncol(data)))
-  names(newData) <- names(data); newData$category <- character(0)
-  for(i in 1:nrow(data)) {
-    temp <- assemble_expandSubjects(funcData = data[i,], termCategories = termCategories)
-    newData <- rbind(newData, temp)
-  }; data <- newData; rm(newData)
-  
   ## Faster solution, but not currently working
-  # data <- suppressWarnings(apply(data, 1, FUN = assemble_expandSubjects, termCategories = termCategories) %>% bind_rows())
+  newData <- suppressWarnings(apply(data, 1, FUN = assemble_expandSubjects, termCategories = termCategories) %>% bind_rows())
+  data <- newData; rm(newData)
 
   ####################################################################################
   ## Calculate each user's overall sentiment
@@ -752,8 +745,8 @@ assemble_identifySubject <- function(txt, termCategories = NA) {
 #' 
 #' @param x All lists of hashtags contained across all of a user's tweets.
 #'
-#' @return A list of the 3 most frequently-used hashtags.
-assemble_identifyCommonHashtags <- function(x, count = 3) {
+#' @return A list of the 5 most frequently-used hashtags.
+assemble_identifyCommonHashtags <- function(x, n = 5) {
   ## Check if there are at least 3 resu## Compile all of the user's hashtags into a single object
   vec <- unlist(x)
   ## Count the number of occurances of each hashtag
@@ -761,8 +754,8 @@ assemble_identifyCommonHashtags <- function(x, count = 3) {
   if(nrow(vec) > 0) {
     ## Order by frequency, highest to lowest
     vec <- vec[order(-vec$Freq), ]
-    ## Keep the top 3
-    vec <- vec[1:3, ]
+    ## Keep the top <n>
+    vec <- vec[1:n, ]
     ## Change the hashtags to character format
     vec$vec <- as.character(vec$vec)
     ## If there were less than 3 hashtags but more than 0 hashtags,
@@ -774,7 +767,7 @@ assemble_identifyCommonHashtags <- function(x, count = 3) {
     ## Return the hashtags
     return(vec$vec)
   } else {
-   return(c("99", "99", "99")) 
+   return(rep("99", times = n))
   }
 }
 

@@ -2,9 +2,11 @@
 .Rhistory
 .Rapp.history
 
-# Session Data files
+# Data files
 .RData
 data/*.RData
+data/Russian Troll Tweets/*.csv
+data/Russian Troll Tweets/*.MD
 
 # Example code in package build process
 *-Ex.R

@@ -66,7 +66,7 @@ tweetData <- rbind(russianData, legitData); rm(russianData, legitData)
 
 ## Determine each user's most commonly-used hashtags
 userHashtags <- data.table(tweetData)
-userHashtags <- userHashtags[, .(hashtag = assemble_identifyCommonHashtags(hashtags)),
+userHashtags <- userHashtags[, .(hashtag = assemble_identifyCommonHashtags(hashtags, n = nHashtags)),
                              by = .(user_id)]
 
 ## Convert the results back to a data frame
@@ -88,10 +88,14 @@ for(i in 1:length(temp)) {
 }
 
 ## Put in a key value for reshaping the data from long to wide
-userHashtags$key <- rep(c(1:3), times = nrow(userHashtags) / 3)
+userHashtags$key <- rep(c(1:nHashtags), times = nrow(userHashtags) / nHashtags)
 
 ## Reshape the data to wide format
 userHashtags <- reshape(userHashtags, idvar = "user_id", timevar = "key", direction = "wide")
+
+## Remove the hashtag lists from the data - we don't need it anymore, and it messes with
+## some functions that come into play further down.
+tweetData$hashtags <- NULL
 
 ####################################################################################
 ## Vectorize each user's most commonly-linked websites
@@ -129,6 +133,10 @@ userHashtags <- reshape(userHashtags, idvar = "user_id", timevar = "key", direct
 # 
 # ## Reshape the data to wide format
 # userWebsites <- reshape(userWebsites, idvar = "user_id", timevar = "key", direction = "wide")
+
+## Remove the website lists from the data - we don't need it anymore, and it messes with
+## some functions that come into play further down.
+tweetData$expanded_urls <- NULL
 
 ####################################################################################
 ## Extract sentiment data from tidytext and put into a data set
@@ -226,7 +234,7 @@ analysisData <- merge(userBasicProfileData, userSentimentProfileData, by = "user
 analysisData <- merge(analysisData, userHashtags, by = "user_id", all = TRUE)
 
 ## Merge the profile and vectorized website data
-analysisData <- merge(analysisData, userWebsites, by = "user_id", all = TRUE)
+# analysisData <- merge(analysisData, userWebsites, by = "user_id", all = TRUE)
 
 ####################################################################################
 ## Save and clean up
