@@ -10,12 +10,12 @@
 ## Load the data
 ####################################################################################
 
-load(file = "data/legitTwitterData.RData")
+tweetData <- import_loadTweets(dataSet = "legit")
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:10000, ]
-  tweetData$original_text <- tweetData$text
+  idx <- sample(row.names(tweetData), size = sampleSize, replace = FALSE)
+  tweetData <- tweetData[idx, ]; rm(idx)
 }
 
 ####################################################################################
@@ -24,34 +24,39 @@ if(runMode == "dev") {
 ## project, so I'm going to remove their tweets for now.
 ####################################################################################
 
-## Identify the total number of tweets each user made
-temp <- data.table(tweetData)
-temp <- temp[, .(n_records = .N),
-             by = .(user_id_str)]
-
-## The total collection time was about 6 hours, and I'm going to assume that no
-## normal human being would send out more than 10 tweets per hour, so I'm going to
-## limit the sample to users who tweeted less than 60 total times.
-temp <- subset(temp, n_records < 60)
-
-## Isolate the tweet data of the remaining users
-tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]
-
-## There's still way too many records, so I'm going to trim it down further by
-## removing any user with fewer than 10 tweets. This is so that we get a sufficient
-## corpus of tweets to work with.
-temp <- subset(temp, n_records >= 10)
-
-## Isolate the tweet data of the remaining users
-tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]
-
-## Not bad, but there's still a large number of users. I'm going to trim it down
-## one last time by taking a random sample of 2,000 users.
-keys <- sample(temp$user_id_str, size = 2000, replace = F)
-temp <- temp[temp$user_id_str %in% keys, ]; rm(keys)
-
-## Isolate the tweet data of the remaining users
-tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]; rm(temp)
+## Only run the following if running in "prod" mode.
+if(runMode == "prod") {
+  
+  ## Identify the total number of tweets each user made
+  temp <- data.table(tweetData)
+  temp <- temp[, .(n_records = .N),
+               by = .(user_id_str)]
+  
+  ## The total collection time was about 6 hours, and I'm going to assume that no
+  ## normal human being would send out more than 10 tweets per hour, so I'm going to
+  ## limit the sample to users who tweeted less than 60 total times.
+  temp <- subset(temp, n_records < 60)
+  
+  ## Isolate the tweet data of the remaining users
+  tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]
+  
+  ## There's still way too many records, so I'm going to trim it down further by
+  ## removing any user with fewer than 10 tweets. This is so that we get a sufficient
+  ## corpus of tweets to work with.
+  temp <- subset(temp, n_records >= 10)
+  
+  ## Isolate the tweet data of the remaining users
+  tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]
+  
+  ## Not bad, but there's still a large number of users. I'm going to trim it down
+  ## one last time by taking a random sample of 2,000 users.
+  keys <- sample(temp$user_id_str, size = 2000, replace = F)
+  temp <- temp[temp$user_id_str %in% keys, ]; rm(keys)
+  
+  ## Isolate the tweet data of the remaining users
+  tweetData <- tweetData[tweetData$user_id_str %in% temp$user_id_str, ]; rm(temp)
+  
+}
 
 ####################################################################################
 ## Identify and store the hashtags used in each tweet

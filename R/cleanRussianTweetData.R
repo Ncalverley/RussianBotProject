@@ -10,19 +10,30 @@
 ## Load the data
 ####################################################################################
 
-tweetData <- import_loadTweets()
+## Load data
+tweetData <- import_loadTweets(dataSet = "russian")
+
+## Keep only English tweets. The rest are basically gibberish and not useful for 
+## this project.
+tweetData <- subset(tweetData, language == "English")
 
 ## If running in dev mode, take a small sample for development
 if(runMode == "dev") {
-  tweetData <- tweetData[1:10000, ]
-  tweetData$original_text <- tweetData$text
+  idx <- sample(row.names(tweetData), size = sampleSize, replace = FALSE)
+  tweetData <- tweetData[idx, ]; rm(idx)
 }
 
 ####################################################################################
-## Convert the hashtags and expanded URLs from JSON format to strings
+## Update the names of the data
 ####################################################################################
-tweetData$hashtags <- apply(tweetData[match("hashtags", names(tweetData))], 1, scrub_removeJSON)
-tweetData$expanded_urls <- apply(tweetData[match("expanded_urls", names(tweetData))], 1, scrub_removeJSON)
+names(tweetData)[names(tweetData) == "content"] <- "text"
+names(tweetData)[names(tweetData) == "external_author_id"] <- "user_id"
+names(tweetData)[names(tweetData) == "author"] <- "screen_name"
+
+####################################################################################
+## Extract the hashtags into a separate field
+####################################################################################
+tweetData$hashtags <- apply(tweetData[match("text", names(tweetData))], 1, scrub_storeHashtags)
 
 ####################################################################################
 ## Replace hashtags and user handles with actual persons' names
@@ -31,7 +42,7 @@ tweetData$expanded_urls <- apply(tweetData[match("expanded_urls", names(tweetDat
 ## Load the replacement words
 replacementWords <- import_fetchReplacementWords()
 
-## Update hashtags
+## Update replacement terms
 tweetData$text <- apply(tweetData[match("text", names(tweetData))], 1, scrub_replaceString, replacementWords = replacementWords)
 
 ####################################################################################

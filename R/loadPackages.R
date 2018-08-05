@@ -12,15 +12,23 @@
 library(data.table)
 library(ggplot2)
 library(hunspell)
-library(tm)
 library(tidytext)
 library(stringr)
 library(keras)
-library(caret)
 library(readr)
 library(dplyr)
-library(longurl)
 library(jsonlite)
+library(forcats)
+library(yardstick)
+library(tidyr)
+library(rsample)
+library(lsr)
+library(recipes)
+library(devtools)
+library(corrr)
+library(tidyquant)
+library(lime)
+# install_github("Ncalverley/lime")
 
 ####################################################################################
 ## Initialize data import functions
@@ -31,9 +39,24 @@ library(jsonlite)
 #' Import the CSV containing the tweets of the Russian troll accounts.
 #'
 #' @return A data frame containing the raw tweet data.
-import_loadTweets <- function() {
-  data <- read.csv(file = "data/russianTweets.csv", stringsAsFactors = FALSE)
-  return(data)
+import_loadTweets <- function(dataSet = "legit") {
+  
+  if(dataSet == "russian") {
+    for(fileName in list.files("data/Russian Troll Tweets")[
+      grep(".csv", list.files("data/Russian Troll Tweets"))
+    ]) {
+      tempdata <- read.csv(file = paste0("data/Russian Troll Tweets/", fileName), stringsAsFactors = FALSE)
+      if(!exists("alldata")) {
+        alldata <- tempdata; rm(tempdata)
+      } else {
+        alldata <- rbind(alldata, tempdata); rm(tempdata)
+      }
+    }
+    return(alldata)
+  } else {
+    load(file = "data/legitTwitterData.RData")
+    return(tweetData)
+  }
 }
 
 
@@ -325,7 +348,7 @@ scrub_removeString <- function(txt = NA, strType = NA) {
 #' @return The updated string.
 scrub_replaceString <- function(txt = NA, replacementWords = NA) {
   ## Remove punctuation except '@' and '#' symbols
-  txt <- gsub("(?!#)(?!@)[[:punct:]]", " ", txt, perl=TRUE)
+  txt <- gsub("(?!#)(?!@)[[:punct:]]", "", txt, perl=TRUE)
   ## Define the list of characters that are considered garbage.
   garbage <- c("\n", "&amp", "https", "http")
   ## Remove all garbage characters from the word by replacing them with spaces
@@ -396,10 +419,18 @@ scrub_storeHashtags <- function(txt = NA) {
   x <- unlist(lapply(txt, utils_identHashtag))
   ## Keep the words that were identified as hashtags
   txt <- txt[x]
-  ## Clean the results
-  if(length(txt) > 0) txt <- sapply(txt, utils_removeGarbage)
+  ## Clean the results by removing garbage characters, removing puctuation,
+  ## removing whitespace, and converting all characters to lowercase
+  if(length(txt) > 0) {
+    txt <- unlist(lapply(txt, utils_removeGarbage))
+    txt <- gsub("[[:punct:]]", "", txt)
+    txt <- sub("^\\s+", "", txt)
+    txt <- sub("\\s+$", "", txt)
+    txt <- txt[txt != ""]
+    txt <- tolower(txt)
+  }
   ## Return the hashtags as a list
-  return(as.vector(txt))
+  return(txt)
 }
 
 ####################################################################################
@@ -927,6 +958,9 @@ scrub_cleanWebsites <- function(x) {
 ####################################################################################
 ## Set global variables
 ####################################################################################
+
+## Turn off scientific notation
+options(scipen=999)
 
 ## Create an object that holds the categories of entities that we want to analyze the 
 ## sentiment for. For example, terms like "hillary", "clinton", and "obama" will all 

@@ -15,33 +15,16 @@ load(file = "data/cleanedLegitTweetData.RData"); legitData <- tweetData; rm(twee
 load(file = "data/cleanedRussianTweetData.RData"); russianData <- tweetData; rm(tweetData)
 
 ####################################################################################
-## Load the Russian users file to bring in user information for the Russian trolls
-####################################################################################
-russianUsers <- read_csv("data/russianUsers.csv")
-## Remove missing IDs
-russianUsers <- subset(russianUsers, !is.na(id))
-
-####################################################################################
-## Prepare the Russian tweet data for merging with their user profiles
-####################################################################################
-names(russianUsers)[names(russianUsers) == "created_at"] <- "user_created_at"
-names(russianUsers)[names(russianUsers) == "id"] <- "user_id"
-
-####################################################################################
-## Merge the Russian user account data onto their tweet data
-####################################################################################
-russianData <- merge(russianData, russianUsers, by = "user_id")
-
-####################################################################################
 ## Rename a bunch of fields in the legit data to match the Russian troll data
 ####################################################################################
-
 names(legitData)[names(legitData) == "user_id_str"] <- "user_id"
 names(legitData)[names(legitData) == "full_name"] <- "name"
 names(legitData)[names(legitData) == "expanded_url"] <- "expanded_urls"
 names(legitData)[names(legitData) == "id_str"] <- "tweet_id"
 names(legitData)[names(legitData) == "user_lang"] <- "lang"
 names(legitData)[names(legitData) == "created_at"] <- "created_str"
+names(legitData)[names(legitData) == "followers_count"] <- "followers"
+names(legitData)[names(legitData) == "lang"] <- "language"
 
 ####################################################################################
 ## Trim down the data sets by intersecting the fields
@@ -61,13 +44,32 @@ legitData$troll <- 0
 tweetData <- rbind(russianData, legitData); rm(russianData, legitData)
 
 ####################################################################################
-## Vectorize each user's most commonly-used hashtags
+## Vectorize each group's most commonly-used hashtags
 ####################################################################################
 
 ## Determine each user's most commonly-used hashtags
 userHashtags <- data.table(tweetData)
-userHashtags <- userHashtags[, .(hashtag = assemble_identifyCommonHashtags(hashtags, n = nHashtags)),
+userHashtags <- userHashtags[, .(hashtag = assemble_identifyCommonHashtags(hashtags, n = nHashtags),
+                                 troll = max(troll, na.rm=TRUE)),
                              by = .(user_id)]
+
+## Determine the most commonly-used hashtags among trolls and non-trolls
+groupHashtags <- data.table(userHashtags)
+groupHashtags <- groupHashtags[, .(count = .N),
+                               by = .(troll, hashtag)]
+groupHashtags$total_count <- NA
+groupHashtags$total_count[groupHashtags$troll == 1] <- length(unique(userHashtags$user_id[userHashtags$troll == 1]))
+groupHashtags$total_count[groupHashtags$troll == 0] <- length(unique(userHashtags$user_id[userHashtags$troll == 0]))
+
+## Get the hashtag percentages
+groupHashtags$pct <- groupHashtags$count / groupHashtags$total_count
+
+## Get the top 5 hashtags by group
+groupHashtags_troll <- subset(groupHashtags, troll == 1)
+groupHashtags_legit <- subset(groupHashtags, troll == 0)
+groupHashtags_troll <- groupHashtags_troll[order(-groupHashtags_troll$pct), ]
+groupHashtags_legit <- groupHashtags_legit[order(-groupHashtags_legit$pct), ]
+
 
 ## Convert the results back to a data frame
 userHashtags <- setDF(userHashtags)
@@ -85,7 +87,7 @@ for(i in 1:length(temp)) {
   } else {
     userHashtags$hashtag[i] <- unlist(temp[i])
   }
-}
+}; rm(temp, i)
 
 ## Put in a key value for reshaping the data from long to wide
 userHashtags$key <- rep(c(1:nHashtags), times = nrow(userHashtags) / nHashtags)
@@ -136,7 +138,7 @@ tweetData$hashtags <- NULL
 
 ## Remove the website lists from the data - we don't need it anymore, and it messes with
 ## some functions that come into play further down.
-tweetData$expanded_urls <- NULL
+# tweetData$expanded_urls <- NULL
 
 ####################################################################################
 ## Extract sentiment data from tidytext and put into a data set
@@ -196,32 +198,9 @@ userSentimentProfileData <- assemble_constructUserProfiles(data = tweetData)
 userBasicProfileData <- subset(tweetData, !duplicated(user_id),
   select = c("user_id",
              "screen_name",
-             "name",
-             "description",
-             "verified",
-             "user_created_at",
-             "statuses_count",
-             "followers_count",
-             "favourites_count",
-             "friends_count",
-             "time_zone",
+             "language",
+             "followers",
              "troll"))
-
-## Format the account creation dates
-userBasicProfileData$user_created_at <- apply(userBasicProfileData[match("user_created_at", names(userBasicProfileData))], 
-                                              1, scrub_formatDate)
-
-## Update the creation dates to a usable format
-userBasicProfileData$user_created_at <- strptime(userBasicProfileData$user_created_at, 
-                                                 "%a, %d %b %Y %H:%M:%S %z", tz = "GMT")
-userBasicProfileData$user_created_at <- as.POSIXct(userBasicProfileData$user_created_at, tz = "GMT")
-userBasicProfileData$user_created_at <- as.Date(userBasicProfileData$user_created_at, format="%Y/%m/%d")
-
-## Put in the current date
-userBasicProfileData$current_date <- as.Date(Sys.Date(), format="%Y/%m/%d")
-
-## Calculate the age of the account
-userBasicProfileData$account_age <- as.numeric(userBasicProfileData$current_date - userBasicProfileData$user_created_at)
 
 ####################################################################################
 ## Construct the final analysis data set
@@ -241,4 +220,4 @@ analysisData <- merge(analysisData, userHashtags, by = "user_id", all = TRUE)
 ####################################################################################
 save(analysisData, file = "data/analysisData.RData")
 rm(analysisData, userBasicProfileData, userSentimentProfileData, afinn, bing,
-   loughran, nrc, tweetData)
+   loughran, nrc, tweetData, userHashtags)

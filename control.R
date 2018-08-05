@@ -10,7 +10,10 @@
 ## Define the run mode. This can take on one of two values, "dev" or "prod". When
 ## running in "dev" mode, data will be sampled to keep runtimes to a minimum. When
 ## running in "prod" mode, the full data will be used.
-runMode <- "prod"
+runMode <- "dev"
+
+## Define the size of the sample you want to take when running in dev mode.
+sampleSize <- 100000
 
 ## Define the number of most commonly-occuring user hashtags you want to analyze.
 nHashtags <- 5
@@ -25,7 +28,8 @@ source(file = "R/cleanRussianTweetData.R")
 ## Construct the final analysis data
 source(file = "R/constructAnalysisData.R")
 
-
+## Construct the neural network
+source(file = "R/constructModel.R")
 
 
 
